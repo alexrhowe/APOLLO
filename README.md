@@ -3,7 +3,7 @@ Atmosphere retrieval code for exoplanets
 
 USER GUIDE TO THE APOLLO ATMOSPHERE RETRIEVAL CODE
 
-APOLLO v0.9.11rc Release Candidate
+APOLLO v0.9.10 Release Candidate
 18 June 2019
 
 Alex R. Howe
