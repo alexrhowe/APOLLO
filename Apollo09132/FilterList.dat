@@ -1,0 +1,14 @@
+Filters/NIRSpec_F070H.dat 0.66 1.40
+Filters/NIRSpec_G140H.dat 0.95 2.00
+Filters/NIRSpec_G235H.dat 1.59 3.20
+Filters/NIRSpec_G395H.dat 2.71 5.00
+Filters/NIRSpec_F070M.dat 0.66 1.40
+Filters/NIRSpec_G140M.dat 0.95 2.00
+Filters/NIRSpec_G235M.dat 1.59 3.20
+Filters/NIRSpec_G395M.dat 2.71 5.00
+Filters/NIRSpec_Prism.dat 0.60 5.00
+Filters/MIRI_LRS.dat      5.00 13.0
+Filters/MIRI_MRS.dat      5.18 27.9
+Filters/NIRCam_F322W2.dat 2.42 4.00
+Filters/NIRCam_F444W.dat  3.90 5.00
+Filters/NIRISS_G700XD.dat 0.60 2.50
