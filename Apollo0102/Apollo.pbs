@@ -1,0 +1,19 @@
+#!/bin/sh
+
+#### PBS preamble
+#PBS -N Apollo_example
+#PBS -M arhowe@umich.edu
+#PBS -m abe
+#PBS -V
+#PBS -l walltime=24:00:00
+#PBS -l nodes=14:ppn=16,pmem=4000mb
+#PBS -q flux
+#PBS -A mrmeyer_flux
+#PBS -l qos=flux
+#PBS -j oe
+#### End PBS preamble
+
+if [ -n "$PBS_NODEFILE" ]; then cat $PBS_NODEFILE; fi
+if [ -n "$PBS_O_WORKDIR" ]; then cd $PBS_O_WORKDIR; fi
+
+mpirun python Apollo.py example.resolved.dat > /scratch/lsa_flux/arhowe/Apollo.log
