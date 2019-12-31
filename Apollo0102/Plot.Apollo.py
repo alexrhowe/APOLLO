@@ -156,9 +156,6 @@ elif datatype == 'Samples':
     
     if len(sys.argv)>4:
         confidence = (float)(sys.argv[4])  # Optional confidence interval parameter.
-    else:
-        print 'Error: Reference spectrum not specified.'
-        sys.exit()
         
     # Processing the sample file    
     line = fdata.readline().split()
