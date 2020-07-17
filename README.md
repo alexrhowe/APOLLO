@@ -5,7 +5,14 @@ APOLLO v0.10.2 Beta
 
 Public Beta Release: 17 July 2020
 
-NOTE: this public beta is generally stable for the cases described below, but development is ongoing. Expect a major overhaul with v0.11 in Q3 2020.
+NOTE: this public beta is generally stable for the cases described in 
+Section 2, but development is ongoing. Expect a major overhaul with 
+v0.11 in Q3 2020.
+
+Molecular cross section files are not included with this release due to 
+memory constraints. Please contact the developer at 
+alex.r.howe@nasa.gov for more information, or build your own based on 
+the format described in Section 8.
 
 Alex R. Howe
 
@@ -22,10 +29,6 @@ Apollo.tar
 	JWST filter list
 	JWST filter functions
 	Example files
-Apollo.opacs.tar.gz
-	Molecular cross section tables
-	Aerosol optical properties tables
-	Aerosol optical cross section tables
 
 CONTENTS
 1.  Description
