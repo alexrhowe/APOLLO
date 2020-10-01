@@ -88,7 +88,7 @@ cluster, do the following (some of this may apply to your local cluster):
 
 PENDING TESTING
 
-APOLLO version 0.11.2.1 is a test build. v0.10.4 was verified to be accurate and
+APOLLO version 0.11.3 is a test build. v0.10.4 was verified to be accurate and
 stable with the one-stream radiative transfer algorithm for transit, secondary
 eclipse, and direct imaging; for layered and 5-parameter T-P profiles; for
 cloud-free models, an opaque cloud deck, a cloud slab of uniform particle size
