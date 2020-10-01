@@ -4,7 +4,7 @@ APOLLO v0.11.3 Beta
 30 September 2020
 
 NOTE: this public beta is generally stable for the cases described in
-Section 2, but development is ongoing. We are running a full suite of test and
+Section 2, but development is ongoing. We are running a full suite of tests and
 are hoping to produce a reliable v1.0 by the end of the year.
 
 Molecular cross section files are not included with this release due to memory
