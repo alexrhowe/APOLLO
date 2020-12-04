@@ -1,10 +1,10 @@
 USER GUIDE TO THE APOLLO ATMOSPHERE RETRIEVAL CODE
 
-APOLLO v0.11.3 Beta
-30 September 2020
+APOLLO v0.11.5 Beta
+4 December 2020
 
 NOTE: this public beta is generally stable for the cases described in
-Section 2, but development is ongoing. We are running a full suite of tests and
+Section 2, but development is ongoing. We are running a full suite of test and
 are hoping to produce a reliable v1.0 by the end of the year.
 
 Molecular cross section files are not included with this release due to memory
@@ -24,6 +24,7 @@ Apollo.tar
 	MakeHaze source code
 	Plot Apollo source code
 	Plot Converge source code
+	Plot Haze source code
 	Plot Opac source code
 	JWST filter list
 	JWST filter functions
@@ -68,6 +69,9 @@ schwimmbad 0.3.1
 corner 2.1.0
 Cython 0.29.21
 GCC 4.9.4
+OpenMPI 4.0.3
+
+Warning: in our tests, we have fonud that Intel MPI does NOT work.
 
 The build environment needed to run APOLLO on a computing cluster will vary
 with the particular cluster. You may need to load Anaconda and the C++
@@ -107,6 +111,8 @@ This can be useful to troubleshoot if the walking is malfunctioning.
 Plot Opac plots two sets of cross sections from different tables to the screen
 for a particular pressure and temperature. This is meant to compare similar
 tables to check for any any differences.
+
+Plot Haze does the same for haze particle cross sections.
 
 MakeHaze computes new haze opacity tables using Mie scattering from a table of
 indices of refraction for the haze material. Note that MakeHaze is a fully C++
@@ -218,6 +224,14 @@ of interpolating. This is because it is meant to compare the actual values in
 the tables for similar tables, and interpolation could mask the actual
 differences.
 
+Plot Haze is run from the command line in the same way. It plots the particle
+cross sections from two specified haze tables (which may be absorption,
+scattering, or asymmetry parameter).
+Plot Haze takes 3 command line arguments:
+1. First cross section file name.
+2. Second cross section file name.
+3. Particle size in microns (rounded down to the nearest size on the table).
+
 MakeHaze is run from the command line as ./MakeHaze. It takes up to 3 command
 line arguments:
 1. Opacities directory for both input and output files. Default: ../Opacities
@@ -325,11 +339,12 @@ Location, 3 fields:
 2. Right ascension in decimal degrees. Default: 0.0
 3. Declination in decimal degrees. Default: 0.0
 
-Minimum_Mass, 1 field:
-1. Minimum mass of the planet in Jupiter masses. This sets an additional prior
-   on the radius and gravity of the planet. This is intended to prevent
-   atmospheres too extended for the code to find a structural solution.
-   Default: 0.5
+Mass_Limits, 2 fields:
+1. Minimum mass of the planet in Jupiter masses. Default: 0.5
+2. Maximum mass of the planet in Jupiter masses. Default: 80.0
+NOTE: These set an additional prior on the radius and gravity of the planet. The
+   minimum mass is intended in part to prevent atmospheres too extended for the
+   code to find a structural solution.
 
 Tables, 2 fields:
 1. Set of opacity tables to use for computing the spectrum. For example,
@@ -371,13 +386,14 @@ Streams, 1 field:
 NOTE: the 2-stream algorithm is currently implemented only for cloudless
    atmospheres and opaque cloud decks in emission.
 
-Output_Mode, 1 field:
+Output_Mode, 2 fields:
 1. Output spectroscopic or photometric mode. Used only in "Spectrum" mode. If
    one of JWST's spectroscopic modes is specified, Makespectrum will create a
    spectrum with noise using a pipeline for that mode in addition to the
    full-resolution spectrum. If a file containing a filter throughput function
    is specified, Makespectrum will compute the weighted mean flux through the
    filter. Default: none
+2. Exposure time in seconds. Default: 1000.
 NOTE: These filter functions must have two columns:
 1. Wavenumber in cm^-1
 2. Fractional throughput.
@@ -698,7 +714,8 @@ by the derived parameters:
 3. [Fe/H] in dex.
 4. Effective temperature.
 
-Subsequent lines list all of the paramters for each sample. By default, only the last 10% of samples are printed, after the burn-in, to reduce file sizes.
+Subsequent lines list all of the paramters for each sample. By default, only
+the last 10% of samples are printed, after the burn-in, to reduce file sizes.
 However, in serial mode, all of the samples are printed. The full sample array
 can be also printed by adding the flag "Full" to the "Output" line in the input
 file.
@@ -754,36 +771,65 @@ the command line.
 
 TO-DO LIST
 
-1. Reorganize the header files to handle public and private correctly.
-2. Am I actually using the different upper and lower error bars?
-3. Do I like the "norad" normalization?
-4. Do I like the default "h2only" filler?
-4. Add cloud models and parametric T-P profiles to Plot Apollo. Also consider
+Cosmetic:
+1. Reorganize the header file to handle public and private correctly.
+2. Consider changing some parameter names to be less confusing.
+3. Clean up JWST mode file names and add or delete appropriate files.
+4. Replace all output files with up to date versions.
+
+Model details:
+5. Am I actually using the different upper and lower error bars?
+6. Do I like the "norad" normalization?
+7. Do I like the default "h2only" filler?
+
+Functionality:
+8. Add cloud models and parametric T-P profiles to Plot Apollo. Also consider
    other useful combinations like log(g) with abundances.
-5. Add a check to Atmosphere.cpp to ensure the absorption and scattering cross
-   section files have identical binnings. (Actually, I think I can just give
-   them different table sizes since they do get interpolated independently.)
-6. Give each cloud model a name to create a switch for them.
-7. Add options to test for convergence on the fly for both emcee's
+9. Add options to test for convergence on the fly for both emcee's
    autocorrelation and an additional stopping criterion to max_steps.
-8. Add options for reflection spectra.
-9. Consider combining Planet_layer and Planet_auto by having Apollo call
-   getProfile directly.
-10. Add an option to lnlike() to bypass the calculation of binmod and s2, and
+10. Add options for reflection spectra.
+11. Add an option to lnlike() to bypass the calculation of binmod and s2, and
     call addnoise() to find goodness of fit for specific JWST modes.
-11. Consider adding more command line arguments to MakeHaze and checking for
-    bad inputs.
-12. Figure out how to run several spectra in a row from the command line in
-    the Python environment without rereading the cross section tables.
-13. Implement 2-stream radiative transfer for transits.
-14. Let transits use an input stellar spectrum.
-15. Consider changing some parameter names to be less confusing.
-16. Allow the default hire table setting to detect the resolution of the
+12. Implement 2-stream radiative transfer for transits.
+13. Let transits use an input stellar spectrum.
+14. Allow the default hires table setting to detect the resolution of the
     observations and respond appropriately.
-17. Edge effects cause errors when the specific mode is the same width as the
+15. Update from Arthur's Planet_auto_4-models_exponential.cpp.
+
+Error checking:
+16. Add a check to Atmosphere.cpp to ensure the absorption and scattering cross
+    section files have identical binnings. (Actually, I think I can just give
+    them different table sizes since they do get interpolated independently.)
+17. Consider adding more command line arguments to MakeHaze and checking for
+    bad inputs.
+18. Edge effects cause errors when the specific mode is the same width as the
     mode spectrum.
+19. Check that the metallicity, etc. are being computed correctly when there
+    are fixed parametres.
+
+Interface:
+20. Give each cloud model a name to create a switch for them.
+21. Figure out how to run several spectra in a row from the command line in
+    the Python environment without rereading the cross section tables.
 
 CHANGE LOG
+
+v0.11.5
+Combined Planet_layer.cpp and Planet_auto.cpp into a single Planet.cpp (and the
+relevant header and Cython files).
+This also corrected numerous errors that were in Planet_auto.cpp, centered
+around the Teff calculation.
+
+v0.11.4
+Removed unnecessary Cython output files from the tarball.
+Fixed a bug that caused the likelihood function to return zero when not using
+polynomial fitting.
+Corrected the initial guess for logf.
+Fixed a bug that made the error bars on the JWST noise model impossibly small.
+Fixed an error in the calculation of C/O and [M/H].
+Added a maximum mass parameter.
+Added an exposure time parameter for JWST model observations.
+Added Plot.Haze.py to the package.
 
 v0.11.3
 Fixed an index error in the derived parameter calculation.
