@@ -1,0 +1,39 @@
+Object		example.parametric
+Mode		Eclipse
+Parallel	True
+Data		examples/example.eclipse.obs.dat
+Convolve	1
+Binning		1
+Degrade		1
+Prior		Uniform
+N_Steps		30000
+Star		4875.	0.805	0.031
+Location	19.5	300.18	22.71
+Minimum_Mass	0.5
+Tables		nir	lores
+Pressure	-3.0	2.5
+Streams		1
+Output		samples
+Opacities	../Opacities
+Parameter   Initial   Mu    Sigma    Min     Max
+Basic
+Rad	      12.75    12.75   1.0    8.0    22.0	    
+Log(g)         4.76     4.8    1.0    2.0     6.0     
+Gases
+h-	      -5.00    -5.0    1.0  -12.0    -0.0
+h2o           -3.45    -3.0    1.0  -12.0    -0.0
+ch4           -3.40    -4.0    1.0  -12.0    -0.0
+co            -7.53    -8.0    1.0  -12.0    -0.0
+co2           -7.76    -8.0    1.0  -12.0    -0.0
+nh3           -4.64    -5.0    1.0  -12.0    -0.0
+h2s           -8.94    -8.0    1.0  -12.0    -0.0
+Burrows_alk   -5.45    -5.0    1.0  -12.0    -0.0
+Atm	    Parametric
+Tint	     300.   1000.   200.    75.   4000.
+log(kappaIR)   0.3    -2.0    1.0   -5.0     5.0
+gamma1	       1.0     1.0    0.5    0.01    2.0
+gamma2	       1.0     1.0    0.5    0.01    2.0
+alpha	       0.5     0.5    0.5    0.0     1.0
+End
+deltaL	       0.      0.     1.0  -10.0    10.0
+logf	       1.      1.     0.1    0.01  100.
