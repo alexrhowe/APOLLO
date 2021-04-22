@@ -1,5 +1,5 @@
 CXXFLAGS=-g
 all: MakeHaze
-MakeHaze : src/MakeHaze.o src/Atmosphere.haze.o src/constants.o
-	g++ -o MakeHaze -g src/MakeHaze.o src/Atmosphere.haze.o src/constants.o
-MakeHaze.o Atmosphere.haze.o constants.o : src/Atmosphere.haze.h src/constants.h
+MakeHaze : MakeHaze.o Atmosphere.haze.o constants.o
+	g++ -o MakeHaze -g MakeHaze.o Atmosphere.haze.o constants.o
+MakeHaze.o Atmosphere.haze.o constants.o : Atmosphere.haze.h constants.h
