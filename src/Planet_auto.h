@@ -11,7 +11,6 @@ class Planet
   
   double mp;     // planet mass
   double mu;     // mean molecular weight
-  //double g;      // surface gravity
   double tstar;  // stellar temperature
 
   // implement as vectors
@@ -23,10 +22,6 @@ class Planet
   vector<double> wavenslo;
   vector<vector<double > > scatable;
   vector<vector<double > > scatablelo;
-  vector<vector<double > > h2prof;
-  vector<vector<double > > nakprof;
-
-  int dsteps;    // integration steps in horizontal direction
 
  public:
   Planet(vector<int> switches, vector<double> waves, vector<double> waveslo, vector<int> mollist, string opacname, string hir, string lor);
@@ -39,11 +34,11 @@ class Planet
   int nwavelo;
   int nspec;
   int mode;
+  int streams;
   int hazetype;
   int ntable;
   int degrade;
   int cloudmod;
-  int range;
   double rp;     // planet radius
   double rs;
   double rxsec;
@@ -53,8 +48,7 @@ class Planet
   double grav;   // log(g)
   double hmin;   // minimum height treated in atmosphere
   double hmax;   // maximum height treated in atmosphere
-  double wavel; // wavelength for optical depth calculation (in microns)
-  double hazeopac;
+  double wavel;  // wavelength for optical depth calculation (in microns)
   double pmin;
   double pmax;
   double tmin;
@@ -67,6 +61,7 @@ class Planet
   double lminlo;
   double lmaxlo;
   double reslo;
+  bool doMie;
   vector<double> haze;
   vector<double> tpprof;
   vector<double> hprof;
@@ -74,33 +69,36 @@ class Planet
   vector<vector<double > > tauprof;
   vector<vector<double > > taulayer;
   vector<vector<double > > w0;
+  vector<vector<double > > asym;
   vector<vector<double > > opacproflo;
   vector<vector<double > > tauproflo;
   vector<vector<double > > taulayerlo;
   vector<vector<double > > w0lo;
+  vector<vector<double > > asymlo;
   vector<vector<vector<double> > > opacities;
   vector<vector<vector<vector<double> > > > mastertable;
   vector<vector<vector<vector<double> > > > lotable;
   string opacdir;
   string hires;
   string lores;
-  Atmosphere* atmosphere;
+  Atmosphere* atmoshires;
+  Atmosphere* atmoslores;
   
   void setParams(vector<double> plparams, vector<double> abund, vector<double> tpprofile);
   double getTeff();
-  vector<double> getSpectrum(int streams);
+  vector<double> getSpectrum();
   void readopac(vector<int> mollist, vector<double> wavens, string table, string opacdir);
   void setWave(int npoints, double rxsec, vector<double> wavelist, vector<double> abund);
   double getP(double height);
   double getT(double height);
   double getH(double pr);
-  vector<double> getFlux(vector<double> wavens);
+  vector<double> getFlux(vector<double> wavens, string table);
   vector<double> getFluxOneStream(vector<double> wavens, string table);
   vector<double> getFluxes(vector<double> wavens, double cosmu, double delMu, string table);
-  vector<double> transFlux(double rs, vector<double> wavens);
+  vector<double> transFlux(double rs, vector<double> wavens, string table);
   void getProfile(vector<double> tpprofile);
   void getTauProf(vector<double> wavens, string table);
-  void transTauProf(vector<double> wavens);
+  void transTauProf(vector<double> wavens, string table);
   void getOpacProf(double rxsec, vector<double> wavelist, vector<double> abund, string table);
   void getSca(double rxsec, vector<double> wavelist, string table);
   double HminBoundFree(double t, double waven);

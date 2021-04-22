@@ -13,23 +13,46 @@ using namespace cons;
 Atmosphere::Atmosphere(int hazenum, vector<double> hazeparams, string hires, string opacdir)
 {
   haze = hazeparams;
-  std::string hazeFile;
+  std::string absorbFile;
+  std::string scatterFile;
+  std::string asfFile;
+  std::string absorbdir = opacdir + "/" + "absorption";
+  std::string scatterdir = opacdir + "/" + "scattering";
+  std::string asfdir = opacdir + "/" + "asymmetry";
 
-  string hazelist[15] = {"None","h2so4","polyacet","tholin","corundum","enstatite","forsterite","iron","kcl","na2s","nh3ice","soot","h2ocirrus","h2oice","zns"};
+  string hazelist[15] = {"None","h2so4","polyacet","tholin","corundum","enstatite","forsterite","iron","kcl","na2s","nh3ice","soot","watercirrus","waterice","zns"};
   
   printf("Atmosphere\n");
 
   if(hazenum != 0){
-    hazeFile = opacdir + "/" + hazelist[hazenum] + "." + hires + ".dat";
+    absorbFile = absorbdir + "/" + hazelist[hazenum] + ".abs." + hires + ".dat";
+    scatterFile = scatterdir + "/" + hazelist[hazenum] + ".sca." + hires + ".dat";
+    asfFile = asfdir + "/" + hazelist[hazenum] + ".asf." + hires + ".dat";
     
     // read in indices of refraction
-    std::ifstream hFile(hazeFile.c_str());
-    if(!hFile)
-      std::cout << "Haze Cross Section File Not Found" << std::endl;
+    std::ifstream aFile(absorbFile.c_str());
+    if(!aFile)
+      std::cout << "Absorption Cross Section File Not Found" << std::endl;
 
-    hFile >> nwave >> wmin >> wmax >> nsize >> smin >> smax;
+    aFile >> nwave >> wmin >> wmax >> nsize >> smin >> smax;
+
+    // same for scattering indices
+    std::ifstream sFile(scatterFile.c_str());
+    if(!sFile)
+      std::cout << "Scattering Cross Section File Not Found" << std::endl;
+
+    sFile >> nwave >> wmin >> wmax >> nsize >> smin >> smax;
+
+    // same for asymmetry factors
+    std::ifstream gFile(asfFile.c_str());
+    if(!gFile)
+      std::cout << "Scattering Asymmetry File Not Found" << std::endl;
+
+    gFile >> nwave >> wmin >> wmax >> nsize >> smin >> smax;
     
-    hazetab = vector<vector<double> >(nwave,vector<double>(nsize,0));
+    absorbtab = vector<vector<double> >(nwave,vector<double>(nsize,0));
+    scattertab = vector<vector<double> >(nwave,vector<double>(nsize,0));
+    asftab = vector<vector<double> >(nwave,vector<double>(nsize,0));
     waves = vector<double>(nwave,0);
     logsize = vector<double>(nsize,0);
     wmin = log10(wmin);
@@ -38,16 +61,67 @@ Atmosphere::Atmosphere(int hazenum, vector<double> hazeparams, string hires, str
     for(int j=0; j<nsize; j++) logsize[j] = smin + j*(smax-smin)/(nsize-1);
 
     for(int i=0; i<nwave; i++){
-      hFile >> waves[i];
+      aFile >> waves[i];
+      sFile >> waves[i];
+      gFile >> waves[i];
       waves[i] = log10(waves[i]);
       for(int j=0; j<nsize; j++){
-	hFile >> hazetab[i][j];
+	aFile >> absorbtab[i][j];
+	sFile >> scattertab[i][j];
+	gFile >> asftab[i][j];
       }
     }
   }
 }
 
-double Atmosphere::getXsec(double wave, double size){
+double Atmosphere::getAbsXsec(double wave, double size){
+  vector<double> xsec(4,0);
+  double opr1, opr2, opac;
+  double sl = log10(size);
+  double deltas = (sl-smin)/(smax-smin)*(nsize-1.);
+  int js = (int)deltas;
+  double dsi = (sl-logsize[js])/(logsize[js+1]-logsize[js]);
+  if(dsi<0.) dsi = 0.;  // This should only fix rounding errors.
+  
+  if(deltas<=0.){
+    js=0.;
+    dsi=0.;
+  }
+  if(js>nsize-2){
+    js=nsize-2;
+    dsi=0.999999;
+  }
+  double wl = log10(wave);
+  double deltaw = (wl-wmin)/(wmax-wmin)*(nwave-1);
+  int jw = (int)deltaw;
+  double dwi = (wl-waves[jw])/(waves[jw+1]-waves[jw]);
+  if(dwi<0.) dwi = 0.;  // This should only fix rounding errors.
+  
+  if(deltas<=0.){
+    jw=0.;
+    dwi=0.;
+  }
+  if(jw>nwave-2){
+    jw=nwave-2;
+    dwi=0.999999;
+  }
+      
+  xsec[0] = absorbtab[jw][js];
+  xsec[1] = absorbtab[jw][js+1];
+  xsec[2] = absorbtab[jw+1][js];
+  xsec[3] = absorbtab[jw+1][js+1];
+  
+  for(int i=0; i<4; i++){
+    if(xsec[i]<=0.) xsec[i] = 1.e-33;
+  }
+  
+  opr1 = xsec[0] + dwi*(xsec[2]-xsec[0]);
+  opr2 = xsec[1] + dwi*(xsec[3]-xsec[1]);
+  opac = opr1 + dsi*(opr2-opr1);
+  return opac;
+}
+
+double Atmosphere::getScaXsec(double wave, double size){
   vector<double> xsec(4,0);
   double opr1, opr2, opac;
       double sl = log10(size);
@@ -64,7 +138,6 @@ double Atmosphere::getXsec(double wave, double size){
 	js=nsize-2;
 	dsi=0.999999;
       }
-
       double wl = log10(wave);
       double deltaw = (wl-wmin)/(wmax-wmin)*(nwave-1);
       int jw = (int)deltaw;
@@ -80,10 +153,58 @@ double Atmosphere::getXsec(double wave, double size){
 	dwi=0.999999;
       }
       
-      xsec[0] = hazetab[jw][js];
-      xsec[1] = hazetab[jw][js+1];
-      xsec[2] = hazetab[jw+1][js];
-      xsec[3] = hazetab[jw+1][js+1];
+      xsec[0] = scattertab[jw][js];
+      xsec[1] = scattertab[jw][js+1];
+      xsec[2] = scattertab[jw+1][js];
+      xsec[3] = scattertab[jw+1][js+1];
+
+      for(int i=0; i<4; i++){
+	if(xsec[i]<=0.) xsec[i] = 1.e-33;
+      }
+      
+      opr1 = xsec[0] + dwi*(xsec[2]-xsec[0]);
+      opr2 = xsec[1] + dwi*(xsec[3]-xsec[1]);
+      opac = opr1 + dsi*(opr2-opr1);
+  return opac;
+}
+
+// ada: to get the asymmetry factor from an existing table which is assumed to have the same dimensions as the opacity tables.
+double Atmosphere::getAsym(double wave, double size){
+  vector<double> xsec(4,0);
+  double opr1, opr2, opac;
+      double sl = log10(size);
+      double deltas = (sl-smin)/(smax-smin)*(nsize-1.);
+      int js = (int)deltas;
+      double dsi = (sl-logsize[js])/(logsize[js+1]-logsize[js]);
+      if(dsi<0.) dsi = 0.;  // This should only fix rounding errors.
+      
+      if(deltas<=0.){
+	js=0.;
+	dsi=0.;
+      }
+      if(js>nsize-2){
+	js=nsize-2;
+	dsi=0.999999;
+      }
+      double wl = log10(wave);
+      double deltaw = (wl-wmin)/(wmax-wmin)*(nwave-1);
+      int jw = (int)deltaw;
+      double dwi = (wl-waves[jw])/(waves[jw+1]-waves[jw]);
+      if(dwi<0.) dwi = 0.;  // This should only fix rounding errors.
+      
+      if(deltas<=0.){
+	jw=0.;
+	dwi=0.;
+      }
+      if(jw>nwave-2){
+	jw=nwave-2;
+	dwi=0.999999;
+      }
+      
+      xsec[0] = asftab[jw][js];
+      xsec[1] = asftab[jw][js+1];
+      xsec[2] = asftab[jw+1][js];
+      xsec[3] = asftab[jw+1][js+1];
 
       for(int i=0; i<4; i++){
 	if(xsec[i]<=0.) xsec[i] = 1.e-33;
@@ -168,7 +289,7 @@ void Atmosphere::MieLargeSzpara(double size, double wavelength, double xm, doubl
   double ro = 2.0*x*(xm-1.0);
   int i = smi1xs(x,nx,xm,ym);
   sm5msx(x,i);
-  asf = (qe-qp)/qs;
+  //asf = (qe-qp)/qs;                         // original definition of asf from Adam Burrows
   double xstops = x + 4.0*pow(x,1./3.) + 2.0; // cf Bohen-Huffman P480 (1983)
   int nv = (int)(std::max(xstops,xn)+15.);             // limit smi3dm array
   smi3sm(i,180.0);
@@ -204,13 +325,13 @@ void Atmosphere::MieLargeSzpara(double size, double wavelength, double xm, doubl
       double gn = 4.0*sns/x/x;
       double pol = (s1s-s2s)/(s1s+s2s);
     }
+  asf = qb/(qs+qb); // definition of asf used by the Planet class
   return;
 }
 
 // no explanation given
 int Atmosphere::smi1xs(double x, int nx, double xm, double ym)
 {
-  double scale;
   double ctc = 1.e-14;              // edited from ctc=1.e-8
   double xmx = xm*x;                // m'x
   double ymx = ym*x;                // m"x
@@ -323,8 +444,6 @@ void Atmosphere::sm5msx(double x, int i)
 // smi3sm for Mie angular functions
 void Atmosphere::smi3sm(int i, double thd)
 {
-  double scale;
-
   double th = thd * 0.0174532925;
   double z = cos(th);
   double pn1 = 0.0;
@@ -359,8 +478,6 @@ void Atmosphere::smi3sm(int i, double thd)
 // Sub sm5pqs for Mie P, Q comparison by smi1sx coefficients
 void Atmosphere::sm5pqs(double x, int nm)
 {
-  double scale;
-
   double s1r = 0.0;
   double s1i = 0.0;
 

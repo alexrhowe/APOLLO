@@ -1,20 +1,24 @@
+Object		example.haze
 Mode		Resolved
 Parallel	True
-Object		example.haze
+Data		examples/example.obs.dat
+Convolve	1
+Binning		1
+Degrade		1
+Prior		Uniform
+N_Steps		30000
 Star		4600.	0.74	700.
 Location	5.84	224.37	-21.42
-Data		examples/example.obs.dat	1
-Degrade		1
-N_Steps		30000
+Minimum_Mass	0.5
+Tables		lores	lores
 Pressure	-3.0	2.5
 Streams		1
-Prior		Uniform
 Output		samples
 Opacities	../Opacities
 Parameter   Initial   Mu    Sigma    Min     Max
 Basic
 RtoD2U	     -18.68   -18.8    0.2  -22.0   -16.0	    
-Log(g)         4.76     4.8    1.0    1.0     7.0   
+Log(g)         4.76     4.8    1.0    2.0     6.0   
 Gases
 h2o           -3.45    -3.0    1.0  -12.0    -0.0
 ch4           -3.40    -4.0    1.0  -12.0    -0.0
@@ -40,11 +44,11 @@ T13	     219.     300.   200.   100.   3000.
 T14	     216.     300.   200.   100.   3000.
 T15	     210.     300.   200.   100.   3000.
 gamma	       5.e-5   5.e-5  1.e-5  0.0   1000.
-Clouds	       2       Enstatite
+Clouds	       2       Corundum
 Haze_abund     2.0     0.0    0.5   -6.0     6.0
-Haze_size     -1.0     0.0    0.5   -4.0     4.0
-Haze_minP     -1.0    -2.0    1.0   -3.0     2.5
-Haze_thick     2.0     1.0    1.0    0.0     5.5
+Haze_size      0.4     0.0    0.5   -4.0     4.0
+Haze_minP      0.0    -2.0    1.0   -3.0     2.5
+Haze_thick     2.4     1.0    1.0    0.0     5.5
 End
 deltaL	       0.      0.     1.0  -10.0    10.0
 logf	       1.      1.     0.1    0.01  100.

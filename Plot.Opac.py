@@ -1,9 +1,10 @@
+from __future__ import print_function
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-if(sys.argv)<=3:
-    print 'Error: arguments not specified. File1, File2, Pressure, Temperature'
+if len(sys.argv)<=3:
+    print('Error: arguments not specified. File1, File2, Pressure, Temperature')
     sys.exit()
 
 file1 = sys.argv[1]
@@ -25,15 +26,16 @@ min1  = (float)(header1[7])
 max1  = (float)(header1[8])
 
 if press<minP1 or press>maxP1:
-    print 'Error: pressure out of range.'
+    print('Error: pressure out of range.')
     sys.exit()
 if temp<minT1 or temp>maxT1:
-    print 'Error: temperature out of range.'
+    print('Error: temperature out of range.')
+    sys.exit()
 
 ip1 = (int)(np.floor((press-minP1)/(maxP1-minP1)*(np1-1)))
 jt1 = (int)(np.floor((temp-minT1)/(maxT1-minT1)*(nt1-1)))
 
-x1 = np.linspace(min1,max1,len1)
+x1 = np.exp(np.linspace(np.log(min1),np.log(max1),len1))
 y1 = np.zeros(len1)
 
 for i in range(0,np1):
@@ -59,15 +61,15 @@ min2  = (float)(header2[7])
 max2  = (float)(header2[8])
 
 if press<minP2 or press>maxP2:
-    print 'Error: pressure out of range.'
+    print('Error: pressure out of range.')
     sys.exit()
 if temp<minT2 or temp>maxT2:
-    print 'Error: temperature out of range.'
-    
+    print('Error: temperature out of range.')
+    sys.exit()
 ip2 = (int)(np.floor((press-minP2)/(maxP2-minP2)*(np2-1)))
 jt2 = (int)(np.floor((temp -minT2)/(maxT2-minT2)*(nt2-1)))
 
-x2 = np.linspace(min2,max2,len2)
+x2 = np.exp(np.linspace(np.log(min2),np.log(max2),len2))
 y2 = np.zeros(len2)
 
 for i in range(0,np2):

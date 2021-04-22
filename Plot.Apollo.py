@@ -1,13 +1,14 @@
+from __future__ import print_function
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 import corner
 
-if(sys.argv)>1:
+if len(sys.argv)>1:
     fdata = open(sys.argv[1],'r')
 else:
-    print 'Parameters: Input File, Object Name, Data Type, [Reference Spectrum]'
+    print('Parameters: Input File, Object Name, Data Type, [Reference Spectrum]')
     sys.exit()
 
 outfile = ''
@@ -19,14 +20,14 @@ if len(sys.argv)>3:
     datatype = sys.argv[3]
 
 if datatype == '':
-    print 'Error: Input type not specified. Spectrum or Samples.'
+    print('Error: Input type not specified. Spectrum or Samples.')
     sys.exit()
 
 if datatype == 'Spectrum':
     if len(sys.argv)>4:
         fref = open(sys.argv[4],'r')  # Don't need this for samples.
     else:
-        print 'Error: Reference spectrum not specified.'
+        print('Error: Reference spectrum not specified.')
         sys.exit()
     
     # Processing the Apollo spectrum
@@ -133,7 +134,7 @@ if datatype == 'Spectrum':
 
     # May need a way to set the labels based on the input files
 
-    ax.plot(dcalmid,dflux,'-',linewidth=1,label='Retrieved Spectrum',c='b')
+    ax.plot(dcalmid,dflux,'-',linewidth=1,label='Forward Model',c='b')
     #ax.plot(rcalmid,rflux,'o',linewidth=1,label='Observations',c='k')
     ax.errorbar(rcalmid,rflux,rnoise,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
 
@@ -146,10 +147,10 @@ if datatype == 'Spectrum':
 
     plt.legend(fontsize=12)
     figname = 'plots/' + outfile + 'fullres.fit.png'
-    plt.savefig(figname) # Need to procedurally generate filename
+    #plt.savefig(figname) # Need to procedurally generate filename
 
     # Option to display plot
-    #plt.show()
+    plt.show()
 
 elif datatype == 'Samples':
     confidence = 0.99
@@ -177,18 +178,21 @@ elif datatype == 'Samples':
     gases = [] 
     gnames = []
     temps = []
+    
     for i in range(0,len(pnames)):
         if pnames[i] in baselist:
             basic.append(i)
             j = baselist.index(pnames[i])
             bnames.append(bnamelist[j])
             bnames2.append(pnames[i])
+                
         if pnames[i] in gaslist:
             gases.append(i)
             j = gaslist.index(pnames[i])
             gnames.append(gnamelist[j])
+            
         if pnames[i][0]=='T' and not pnames[i]=='Teff': temps.append(i)
-
+                
     samples = np.zeros((dim[0]*dim[1],dim[2]))
     for i in range(0,len(samples)):
         line = fdata.readline().split()
@@ -236,13 +240,13 @@ elif datatype == 'Samples':
     fig3name = 'plots/' + outfile + 'TP.png'
     fig3.savefig(fig3name)
 
-    print '1-sigma bounds on basic parameters'
+    print('1-sigma bounds on basic parameters')
     blist = np.percentile(bsamples,[16,50,84],axis=0)
     for i in range(0,len(blist[0])):
-        if len(bnames2[i])<=6: print '{0:s}:\t\t {1:10.5f} {2:10.5f} {3:10.5f}'.format(bnames2[i],blist[0][i],blist[1][i],blist[2][i])
-        else: print '{0:s}:\t {1:10.5f} {2:10.5f} {3:10.5f}'.format(bnames2[i],blist[0][i],blist[1][i],blist[2][i])
-    
+        if len(bnames2[i])<=6: print('{0:s}:\t\t {1:10.5f} {2:10.5f} {3:10.5f}'.format(bnames2[i],blist[0][i],blist[1][i],blist[2][i]))
+        else: print('{0:s}:\t {1:10.5f} {2:10.5f} {3:10.5f}'.format(bnames2[i],blist[0][i],blist[1][i],blist[2][i]))
+
 else:
-    print 'Error: input type wrongly specified. Spectrum or Samples.'
+    print('Error: input type wrongly specified. Spectrum or Samples.')
     sys.exit()
         

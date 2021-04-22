@@ -6,8 +6,8 @@ cdef extern from "Planet_auto.h":
         Planet(vector[int] switches, vector[double] wavens, vector[double] waveslo, vector[int] mollist, string opacname, string hir, string lor) except +
         void setParams(vector[double] plparams, vector[double] abund, vector[double] tpprofile)
         double getTeff()
-        vector[double] getSpectrum(int streams)
+        vector[double] getSpectrum()
         void readopac(vector[int] mollist, vector[double] wavens, string table, string opacdir)
         void setWave(int npoints, double rxsec, vector[double] wavens, vector[double] abund)
-        vector[double] getFlux(vector[double] wavens)
-        vector[double] transFlux(double rs, vector[double] wavens)
+        vector[double] getFlux(vector[double] wavens, string table)
+        vector[double] transFlux(double rs, vector[double] wavens, string table)

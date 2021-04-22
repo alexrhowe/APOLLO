@@ -1,7 +1,9 @@
+from __future__ import print_function
+from __future__ import absolute_import
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import Filter
+from . import Filter
 import sys
 from matplotlib import rc
 from scipy import interpolate
@@ -11,7 +13,7 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
     # mod_flux = emission from the target in (erg s^-1 cm^-2 Hz^-1)
 
     if mode==-1 and fname=='':
-        print 'Error: no filter file provided.'
+        print('Error: no filter file provided.')
         return 0
     
     # Fundamental constants
@@ -35,8 +37,8 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
     ntran = 1         # number of transits if applicable
 
     # compute solid angles of star and planet
-    theta_star = 7.0e5*Rs/(3.0e13*dist)
-    theta_planet = 7.0e4*Rp/(3.0e13*dist)
+    theta_star = 6.96e10*Rs/(3.086e18*dist)
+    theta_planet = 6.371e8*Rp/(3.086e18*dist)
     omega_star = pi*theta_star*theta_star
     omega_planet = pi*theta_planet*theta_planet
 
@@ -52,7 +54,7 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
     mod_wave = 10000./mod_wave
 
     for i in range(0,len(mod_flux)):
-        planet_flux[i] = (float(mod_flux[i])*(0.5/pi))*omega_planet  # multiply by solid angle
+        planet_flux[i] = (float)(mod_flux[i])/pi*omega_planet  # multiply by solid angle
         
     received_flux = planet_flux                  # actual flux density (erg/s/cm^2/Hz) at the telescope
     planet_flux = planet_flux/(h*c*uwave)        # divide by photon energy
@@ -115,11 +117,11 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
     kernel = kernel/np.sum(kernel)
     flux_planet = np.convolve(planet_flux,kernel,mode='same')
     flux_density = np.convolve(received_flux,kernel,mode='same')
+
     flux_star = np.convolve(star_flux,kernel,mode='same')
 
     if mode==-1: fil.calwave = mod_wave
-    
-    fil.calwave = 10000./fil.calwave
+    #fil.calwave = 10000./fil.calwave
 
     if mode!=-1:
         f = interpolate.interp1d(mod_wave,flux_star,kind='linear')
@@ -207,8 +209,8 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
     background = background * omeg_back * 2.5e5
     zodi = zodi * omeg_back * 2.5e5
 
-    freq1 = 1.e4/fil.calwave
-    bandwidth = np.fabs(np.gradient(freq1)) * c
+    freq1 = 1.e4/fil.calwave                      # cm^-1
+    bandwidth = np.fabs(np.gradient(freq1)) * c   # s^-1
 
     if(np.max(fil.calwave) > 15.0):
         bandwidth[fil.npix1-1] = bandwidth[fil.npix1-2]
@@ -292,7 +294,7 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
 
         electron_signal = bandwidth * electron_signal  # e- s^-1 bin^-1
         electron_noise = bandwidth * electron_noise
-        flux_density = bandwidth * flux_density
+        #flux_density = bandwidth * flux_density       # Was meant to return flux per bin, replaced by flux per unit wavelength.
         # end observe.pro
 
         signal_electrons = 3600.*ntran*duration*fil.effic*electron_signal  # e- exposure^-1 bin^-1        

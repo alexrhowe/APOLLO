@@ -140,7 +140,7 @@ void Atmosphere::MieLargeSzpara(double size, double wavelength, double xm, doubl
   double ro = 2.0*x*(xm-1.0);
   int i = smi1xs(x,nx,xm,ym);
   sm5msx(x,i);
-  asf = (qe-qp)/qs;
+  //asf = (qe-qp)/qs;                         // original definition of asf from Adam Burrows
   double xstops = x + 4.0*pow(x,1./3.) + 2.0; // cf Bohen-Huffman P480 (1983)
   int nv = (int)(std::max(xstops,xn)+15.);             // limit smi3dm array
   smi3sm(i,180.0);
@@ -176,6 +176,7 @@ void Atmosphere::MieLargeSzpara(double size, double wavelength, double xm, doubl
       double gn = 4.0*sns/x/x;
       double pol = (s1s-s2s)/(s1s+s2s);
     }
+  asf = qb/(qs+qb); // definition of asf used by the Planet class
   return;
 }
 

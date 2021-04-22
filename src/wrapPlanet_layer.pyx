@@ -20,8 +20,8 @@ cdef class PyPlanet:
     def set_Params(self, plparams, abund, tpprofile):
         return self.thisptr.setParams(plparams, abund, tpprofile)
 
-    def get_Spectrum(self, streams):
-        return self.thisptr.getSpectrum(streams)
+    def get_Spectrum(self):
+        return self.thisptr.getSpectrum()
 
     def readopac(self, mollist, wavens, table, opacdir):
         return self.thisptr.readopac(mollist, wavens, table, opacdir)
@@ -29,8 +29,8 @@ cdef class PyPlanet:
     def setWave(self, npoints, rxsec, wavens, abund):
         return self.thisptr.setWave(npoints, rxsec, wavens, abund)
 
-    def getFlux(self, wavens):
-        return self.thisptr.getFlux(wavens)
+    def getFlux(self, wavens, table):
+        return self.thisptr.getFlux(wavens, table)
 
-    def transFlux(self, rs, wavens):
-        return self.thisptr.transFlux(rs, wavens)
+    def transFlux(self, rs, wavens, table):
+        return self.thisptr.transFlux(rs, wavens, table)

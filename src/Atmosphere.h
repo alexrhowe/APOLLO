@@ -52,9 +52,13 @@ class Atmosphere
   double smax;
   vector<double> logsize;
   vector<double> waves;
-  vector<vector<double> > hazetab;
-
-  double getXsec(double wave, double size);
+  vector<vector<double> > absorbtab;
+  vector<vector<double> > scattertab;
+  vector<vector<double> > asftab;
+  
+  double getAbsXsec(double wave, double size);
+  double getScaXsec(double wave, double size);
+  double getAsym(double wave, double size);
   double value(double x, double* sigma, double* e);
   void MieLargeSzpara(double size, double wavelength, double xm, double ymm);
 

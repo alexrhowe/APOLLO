@@ -1,8 +1,9 @@
+from __future__ import print_function
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-if(sys.argv)>1:
+if len(sys.argv)>1:
     fin = open(sys.argv[1],'r')
 else:
     'Input file not specified.'
@@ -20,7 +21,7 @@ samples = np.zeros((nsteps,nwalkers,ndim))
 nsamp = np.linspace(1,nsteps,nsteps)
 
 for i in range(0,nsteps):
-    if i%100==0: print i
+    if i%100==0: print(i)
     for j in range(0,nwalkers):
         for k in range(0,ndim):
             samples[i,j,k] = lines[i*nwalkers+j].split()[k]

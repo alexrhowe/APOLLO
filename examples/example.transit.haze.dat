@@ -1,20 +1,24 @@
+Object		example.haze
 Mode		Transit
 Parallel	True
-Object		example.haze
+Data		examples/example.transit.obs.dat
+Convolve	1
+Binning		1
+Degrade		1
+Prior		Uniform
+N_Steps		30000
 Star		4875.	0.805	0.031
 Location	19.5	300.18	22.71
-Data		examples/example.transit.obs.dat	1
-Degrade		1
-N_Steps		30000
+Minimum_Mass	30000
+Tables		nir	lores
 Pressure	-6.0	2.5
 Streams		1
-Prior		Uniform
 Output		samples
 Opacities	../Opacities
 Parameter   Initial   Mu    Sigma    Min     Max
 Basic
 Rad	      12.75   12.75    1.0    8.0    22.0
-Log(g)         4.76     4.8    1.0    1.0     7.0     
+Log(g)         4.76     4.8    1.0    2.0     6.0     
 Gases
 h-	      -5.00    -5.0    1.0  -12.0    -0.0
 h2o           -3.45    -3.0    1.0  -12.0    -0.0
