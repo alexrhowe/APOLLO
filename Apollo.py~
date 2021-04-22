@@ -943,6 +943,7 @@ fchain.write('\n')
 
 i = 0
 for sample in sampler.sample(pos, iterations=nsteps):
+    print sample
     if i%100==0: print 'Step number {0:d}'.format(i)
     if printfull or i>=nsteps*0.9:
         for i2 in range(0,len(sample[0])):
