@@ -1,3 +1,4 @@
+import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
@@ -87,7 +88,7 @@ def GetBinnedSpec(mode,mod_wave,mod_flux,binshi,binslo):
 
 def GetScaOpac(gases,abunds):
     h2 = 1. - np.sum(10**abunds)
-    scaopac = 0.672e-27 * h2
+    scaopac = 0.672e-27 * h2 # Was 0.662
     mmw = 2.28 * h2 # includes helium
     if 'h2o' in gases:
         scaopac = scaopac + 2.454e-27 * 10**(abunds[gases.index('h2o')-1]) # Was 2.45
@@ -127,7 +128,7 @@ def GetScaOpac(gases,abunds):
 
 def GetMollist(gases):
     mollist = np.zeros(len(gases))
-    gaslist = ["h2","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo"]
+    gaslist = ["h2","h2only","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"]
     for i in range(0,len(gases)):
         if gases[i] in gaslist: mollist[i] = gaslist.index(gases[i])
         else: mollist[i] = 0
@@ -183,6 +184,9 @@ obsfile = ''         # Optional file of observations
 opacdir = '../Opacities' # Default opacities directory
 starspec = ''        # Optional stellar spectrum file
 short = False        # Switch to create short output file names
+hires = 'nir'        # Default set of opacity tables to compute the spectra
+lores = 'lores'      # Default low-resolution tables to compute Teff
+outmode = ''
 
 hazelist = ['None','H2SO4','Polyacetylene','Tholin','Corundum','Enstatite','Forsterite','Iron','KCl','Na2S','NH3Ice','Soot','H2OCirrus','H2OIce','ZnS']
 
@@ -240,6 +244,12 @@ while(True):
         if len(line)>3 and line[3]=='Short': short = True
     elif line[0]=='Opacities':
         if len(line)>1: opacdir = line[1]
+    elif line[0]=='Tables':
+        if len(line)>1: hires = line[1]
+        if len(line)>2: lores = line[2]
+    elif line[0]=='Output_Mode':
+        if len(line)>1: outmode = line[1]
+        
 # End read in settings
 
 # Set output file: Object name, type of observation, and # of parameters
@@ -259,7 +269,7 @@ lines = fparams.readlines()
 i=0
 state = -1
 basic = []
-gases = ['h2']     # Default filler is hydrogen
+gases = []
 clouds = []
 atmtype = 'Layers' # Default layered atmosphere
 smooth = False     # Default (needed to correctly count parameters)
@@ -283,6 +293,10 @@ for j in range(0,len(lines)):
     elif str(lines[j]) == 'Gases\n':
         state = 1
         g1 = i
+        if len(lines[j].split())>1:
+            gases.append(lines[j].split()[1])
+        else:
+            gases.append('h2only')  # Filler gas is H2-only, may change
     elif str(lines[j].split()[0]) == 'Atm':
         state = 2
         a1 = i
@@ -376,20 +390,34 @@ streams: 1 for 1-stream radiative transfer, 2 for 2-stream
 '''
 
 # Set wavelength spectrum, keeping full range for spectrum generation
-if wrange==0:
-    nwave = 21205
-    lmin = 0.6
-if wrange==1:
-    nwave = 17228
-    lmin = 5.0
-    if 'Burrows_alk' in gases: gases.remove('Burrows_alk')
-    if 'Lupu_alk' in gases: gases.remove('Lupu_alk')
+
+# Compute hires spectrum wavelengths
+opacfile = opacdir + '/h2o.' + hires + '.dat'
+fopac = open(opacfile,'r')
+opacshape = fopac.readline().split()
+fopac.close()
+nwave = (int)(opacshape[6])
+lmin = (float)(opacshape[7])
+resolv = (float)(opacshape[9])
 
 speclen = (int)(nwave/degrade)
 specwave = np.zeros(speclen)
 for i in range(0,speclen):
-    specwave[i] = 10000./(lmin*np.exp(i*degrade/10000.))
+    specwave[i] = 10000./(lmin*np.exp(i*degrade/resolv))
+    
+# Compute lores spectrum wavelengths
+opacfile = opacdir + '/h2o.' + lores + '.dat'
+fopac = open(opacfile,'r')
+opacshape = fopac.readline().split()
+fopac.close()
+nwavelo = (int)(opacshape[6])
+lminlo = (float)(opacshape[7])
+resolvlo = (float)(opacshape[9])
 
+specwavelo = np.zeros(nwavelo)
+for i in range(0,nwavelo):
+    specwavelo[i] = 10000./(lminlo*np.exp(i/resolvlo))
+    
 mmw,rxsec = GetScaOpac(gases,plparams[g1:g2])
 mollist = GetMollist(gases)
 
@@ -412,8 +440,12 @@ print 'Cloud model:',cloudmod
 mode = int(mode)
 cloudmod = int(cloudmod)
 hazetype = int(hazetype)
+switches = [mode,cloudmod,hazetype]
 
-planet.MakePlanet(mode,specwave,cloudmod,hazetype,wrange,mollist,opacdir)
+# Switch for testing without calling the C++ code.
+#sys.exit()
+
+planet.MakePlanet(switches,specwave,specwavelo,mollist,opacdir,hires,lores)
 print 'Setup complete.'
 # End of setup
 
@@ -490,7 +522,7 @@ if hazetype!=0:
     if cloudmod==2: params1[13] = params1[12] + params1[13]
     
 tpprof = np.zeros(natm)
-    
+
 # Gray atmosphere approximation
 if gray:
     tplong = np.zeros(vres)
@@ -523,16 +555,16 @@ else:
                 tplong[i] = f(maxP + (minP-maxP)*i/(float)(vres-1))
                 if(tplong[i]<75.): tplong[i]=75.
                 if(tplong[i]>4000.): tplong[i]=4000.
-                
+
         # Compute spectrum
-        planet.set_Params(params1,abund,tplong)
+        planet.set_Params(params1,abund,tplong)        
         specflux = planet.get_Spectrum(streams)
 
     if atmtype == 'Parametric':
         # Compute spectrum
         planet.set_Params(params1,abund,tpprof)
         specflux = planet.get_Spectrum(streams)
-
+        
 # Set noise parameters
 noise_params = np.zeros(7)
 noise_params[0] = params1[0]  # radius
@@ -566,6 +598,9 @@ ftest = open(foutname,'w')
 for i in range(0,len(specwave)-1):
     ftest.write('{0:8.2f} {1:8.2f} {2:8.5e} 0.0 0.0 {2:8.5e}\n'.format(specwave[i],specwave[i+1],newtdepth[i]))
 
+teff = planet.get_Teff()
+print 'Teff = {0:8.2f} K'.format(teff)
+    
 # Continue if an observation file was named
 if len(obsfile)>0:
     
@@ -597,9 +632,6 @@ if len(obsfile)>0:
     for i in range(0,rlen):
         fout.write('{0:8.2f} {1:8.2f} {2:8.5e} 0.0 0.0 {2:8.5e}\n'.format(rcalhi[i],rcallo[i],bflux[i]))
 
-    # Plot the output spectrum against the observations
-    plotname = 'plots' + outfile + 'fit.png'  # Need to put this in the plots folder.
-
     rcalmid = 10000./rcalmid
     specwave = 10000./specwave
     
@@ -615,7 +647,11 @@ if len(obsfile)>0:
     
     ymin = -0.20 * yref
     ymax =  1.05 * yref
-    
+
+    # Plot with binned spectrum
+
+    plotname = 'plots' + outfile + 'binned.fit.png'  # Need to put this in the plots folder.
+
     fig = plt.figure(figsize=(10,7))
     ax = fig.add_subplot(111)
     plt.axis((xmin,xmax,ymin,ymax))
@@ -626,8 +662,9 @@ if len(obsfile)>0:
 
     # May need a way to set the labels based on the input files
     
-    ax.plot(rcalmid,rflux,'-',linewidth=1,label='Observations',c='k')
-    ax.plot(specwave,newtdepth,'-',linewidth=1,label='Retrieved Spectrum',c='b')
+    #ax.plot(rcalmid,rflux,'-',linewidth=1,label='Observations',c='k')
+    ax.plot(rcalmid,bflux,'-',linewidth=1,label='Retrieved Spectrum (binned)',c='b')
+    ax.errorbar(rcalmid,rflux,rnoise,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
 
     residuals = bflux-rflux
     ax.plot(rcalmid,residuals+ymin/2.,'-',linewidth=1,label='Residuals (binned and offset)',c='r')
@@ -639,216 +676,230 @@ if len(obsfile)>0:
     plt.legend(fontsize=12)
     plt.savefig(plotname) # Need to procedurally generate filename
 
-'''
-
-# Photometric
-
-ff = 'JWST_filters/NIRCam_F250M.dat'
-calwave,flux_density,fnoise = AddNoise.addNoise(-1,mode,specwave,newtdepth,noise_params,starspec,ff)
-print 'Band Center: {0:8.2f} cm^-1'.format(calwave)
-print 'Flux:     {0:12.5e} cgs'.format(flux_density)
-print 'Noise:    {0:12.5e} cgs'.format(fnoise*flux_density)
-
-
+    # Plot with full-res spectrum
     
-# NIRISS
-
-calwave,flux_density,fnoise = AddNoise.addNoise(12,mode,specwave,newtdepth,noise_params,starspec)
-calhi = np.zeros(len(calwave))
-callo = np.zeros(len(calwave))
-calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
-callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
-for i in range(0,len(calwave)-1):
-    calhi[i+1] = (calwave[i]+calwave[i+1])/2.
-    callo[i] = (calwave[i]+calwave[i+1])/2.
-
-obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calwave)
-
-if mode<=1: noise = fnoise*obsdepth
-if mode==2: noise = fnoise
-obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
-for i in range(0,len(calwave)):
-    if(obs_flux[i]<0.): obs_flux[i] = 0.
-
-foutname = 'modelspectra' + outfile + 'NIRISS.dat'
-print foutname
-ftest = open(foutname,'w')
-for i in range(0,len(calwave)-1):
-    ftest.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
-
-
+    plotname = 'plots' + outfile + 'fullres.fit.png'  # Need to put this in the plots folder.
     
-#NIRCamAll
+    fig = plt.figure(figsize=(10,7))
+    ax = fig.add_subplot(111)
+    plt.axis((xmin,xmax,ymin,ymax))
 
-calwave,flux_density,fnoise = AddNoise.addNoise(11,mode,specwave,newtdepth,noise_params,starspec)
-calhi = np.zeros(len(calwave))
-callo = np.zeros(len(calwave))
-calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
-callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
-for i in range(0,len(calwave)-1):
-    calhi[i+1] = (calwave[i]+calwave[i+1])/2.
-    callo[i] = (calwave[i]+calwave[i+1])/2.
+    plt.xlabel('$\lambda$ ($\mu$m)',fontsize=14)
+    plt.ylabel('Flux (cgs)',fontsize=14)
+    plt.tick_params(axis='both',which='major',labelsize=12)
 
-obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calwave)
-
-noise = fnoise*obsdepth
-obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
-for i in range(0,len(calwave)):
-    if(obs_flux[i]<0.): obs_flux[i] = 0.
-   
-foutname = 'modelspectra' + outfile + 'NIRCam.dat'
-f1 = open(foutname,'w')
-for i in range(0,len(calwave)-1):
-    f1.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
-
-
-
-#1H
-
-calwave,flux_density,fnoise = AddNoise.addNoise(0,mode,specwave,newtdepth,noise_params,starspec)
-calhi = np.zeros(len(calwave))
-callo = np.zeros(len(calwave))
-calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
-callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
-for i in range(0,len(calwave)-1):
-    calhi[i+1] = (calwave[i]+calwave[i+1])/2.
-    callo[i] = (calwave[i]+calwave[i+1])/2.
-
-obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calwave)
-
-noise = fnoise*obsdepth
-obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
-for i in range(0,len(calwave)):
-    if(obs_flux[i]<0.): obs_flux[i] = 0.
-   
-foutname = 'modelspectra' + outfile + 'NIRSpec1H.dat'
-f1 = open(foutname,'w')
-for i in range(0,len(calwave)-1):
-    f1.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
-
-
-
-#2H
-
-calwave,flux_density,fnoise = AddNoise.addNoise(1,mode,specwave,newtdepth,noise_params,starspec)
-calhi = np.zeros(len(calwave))
-callo = np.zeros(len(calwave))
-calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
-callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
-for i in range(0,len(calwave)-1):
-    calhi[i+1] = (calwave[i]+calwave[i+1])/2.
-    callo[i] = (calwave[i]+calwave[i+1])/2.
+    # May need a way to set the labels based on the input files
     
-obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calwave)
+    #ax.plot(rcalmid,rflux,'-',linewidth=1,label='Observations',c='k')
+    ax.plot(specwave,newtdepth,'-',linewidth=1,label='Retrieved Spectrum',c='b')
+    ax.errorbar(rcalmid,rflux,rnoise,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
 
-noise = fnoise*obsdepth
-obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
-for i in range(0,len(calwave)):
-    if(obs_flux[i]<0.): obs_flux[i] = 0.
-   
-foutname = 'modelspectra' + outfile + 'NIRSpec2H.dat'
-f2 = open(foutname,'w')
-for i in range(0,len(calwave)-1):
-    f2.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
-
-
-
-#3H
-
-calwave,flux_density,fnoise = AddNoise.addNoise(2,mode,specwave,newtdepth,noise_params,starspec)
-calhi = np.zeros(len(calwave))
-callo = np.zeros(len(calwave))
-calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
-callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
-for i in range(0,len(calwave)-1):
-    calhi[i+1] = (calwave[i]+calwave[i+1])/2.
-    callo[i] = (calwave[i]+calwave[i+1])/2.
+    residuals = bflux-rflux
+    ax.plot(rcalmid,residuals+ymin/2.,'-',linewidth=1,label='Residuals (binned and offset)',c='r')
+    ax.plot([xmin,xmax],[0.,0.],'-',c='k')
+    ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
     
-obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calwave)
-
-noise = fnoise*obsdepth
-obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
-for i in range(0,len(calwave)):
-    if(obs_flux[i]<0.): obs_flux[i] = 0.
-   
-foutname = 'modelspectra' + outfile + 'NIRSpec3H.dat'
-f3 = open(foutname,'w')
-for i in range(0,len(calwave)-1):
-    f3.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
-
-
-
-#4H
-
-calwave,flux_density,fnoise = AddNoise.addNoise(3,mode,specwave,newtdepth,noise_params,starspec)
-calhi = np.zeros(len(calwave))
-callo = np.zeros(len(calwave))
-calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
-callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
-for i in range(0,len(calwave)-1):
-    calhi[i+1] = (calwave[i]+calwave[i+1])/2.
-    callo[i] = (calwave[i]+calwave[i+1])/2.
+    # Add average error bar symbol
     
-obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calwave)
-
-noise = fnoise*obsdepth
-obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
-for i in range(0,len(calwave)):
-    if(obs_flux[i]<0.): obs_flux[i] = 0.
-   
-foutname = 'modelspectra' + outfile + 'NIRSpec4H.dat'
-f4 = open(foutname,'w')
-for i in range(0,len(calwave)-1):
-    f4.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
-
-
-
-#4M
-
-calwave,flux_density,fnoise = AddNoise.addNoise(7,mode,specwave,newtdepth,noise_params,starspec)
-calhi = np.zeros(len(calwave))
-callo = np.zeros(len(calwave))
-calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
-callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
-for i in range(0,len(calwave)-1):
-    calhi[i+1] = (calwave[i]+calwave[i+1])/2.
-    callo[i] = (calwave[i]+calwave[i+1])/2.
-
-obsdepth = np.zeros(len(calwave))
-obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calwave)
-
-noise = fnoise*obsdepth
-obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
-for i in range(0,len(calwave)):
-    if(obs_flux[i]<0.): obs_flux[i] = 0.
-   
-foutname = 'modelspectra' + outfile + 'NIRSpec4M.dat'
-f5 = open(foutname,'w')
-for i in range(0,len(calwave)-1):
-    f5.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
-
-
-
-#Prism
-
-calwave,flux_density,fnoise = AddNoise.addNoise(8,mode,specwave,newtdepth,noise_params,starspec)
-calhi = np.zeros(len(calwave))
-callo = np.zeros(len(calwave))
-calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
-callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
-for i in range(0,len(calwave)-1):
-    calhi[i+1] = (calwave[i]+calwave[i+1])/2.
-    callo[i] = (calwave[i]+calwave[i+1])/2.
+    plt.legend(fontsize=12)
+    plt.savefig(plotname) # Need to procedurally generate filename
     
-obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calwave)
+# Create binned files for particular JWST modes.
+    
+if outmode == '':
+    sys.exit()
+    
+elif outmode == 'NIRISS':
 
-noise = fnoise*obsdepth
-obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
-for i in range(0,len(calwave)):
-    if(obs_flux[i]<0.): obs_flux[i] = 0.
+    calwave,flux_density,fnoise = AddNoise.addNoise(12,mode,specwave,newtdepth,noise_params,starspec)
+    calhi = np.zeros(len(calwave))
+    callo = np.zeros(len(calwave))
+    calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
+    callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
+    for i in range(0,len(calwave)-1):
+        calhi[i+1] = (calwave[i]+calwave[i+1])/2.
+        callo[i] = (calwave[i]+calwave[i+1])/2.
+
+    obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calhi,10000./callo)
+
+    if mode<=1: noise = fnoise*obsdepth
+    if mode==2: noise = fnoise
+    obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
+    for i in range(0,len(calwave)):
+        if(obs_flux[i]<0.): obs_flux[i] = 0.
+
+    foutname = 'modelspectra' + outfile + 'NIRISS.dat'
+    ftest = open(foutname,'w')
+    for i in range(0,len(calwave)-1):
+        ftest.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
+
+elif outmode == 'NIRCam':
+
+    calwave,flux_density,fnoise = AddNoise.addNoise(11,mode,specwave,newtdepth,noise_params,starspec)
+    calhi = np.zeros(len(calwave))
+    callo = np.zeros(len(calwave))
+    calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
+    callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
+    for i in range(0,len(calwave)-1):
+        calhi[i+1] = (calwave[i]+calwave[i+1])/2.
+        callo[i] = (calwave[i]+calwave[i+1])/2.
+
+    obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calhi,10000./callo)
+
+    noise = fnoise*obsdepth
+    obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
+    for i in range(0,len(calwave)):
+        if(obs_flux[i]<0.): obs_flux[i] = 0.
    
-foutname = 'modelspectra' + outfile + 'Prism.dat'
-f6 = open(foutname,'w')
-for i in range(0,len(calwave)-1):
-    f6.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
-'''
+    foutname = 'modelspectra' + outfile + 'NIRCam.dat'
+    f1 = open(foutname,'w')
+    for i in range(0,len(calwave)-1):
+        f1.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
+
+elif outmode == 'NIRSpec1H':
+
+    calwave,flux_density,fnoise = AddNoise.addNoise(0,mode,specwave,newtdepth,noise_params,starspec)
+    calhi = np.zeros(len(calwave))
+    callo = np.zeros(len(calwave))
+    calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
+    callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
+    for i in range(0,len(calwave)-1):
+        calhi[i+1] = (calwave[i]+calwave[i+1])/2.
+        callo[i] = (calwave[i]+calwave[i+1])/2.
+
+    obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calhi,10000./callo)
+
+    noise = fnoise*obsdepth
+    obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
+    for i in range(0,len(calwave)):
+        if(obs_flux[i]<0.): obs_flux[i] = 0.
+   
+    foutname = 'modelspectra' + outfile + 'NIRSpec1H.dat'
+    f1 = open(foutname,'w')
+    for i in range(0,len(calwave)-1):
+        f1.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
+
+elif outmode == 'NIRSpec2H':
+
+    calwave,flux_density,fnoise = AddNoise.addNoise(1,mode,specwave,newtdepth,noise_params,starspec)
+    calhi = np.zeros(len(calwave))
+    callo = np.zeros(len(calwave))
+    calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
+    callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
+    for i in range(0,len(calwave)-1):
+        calhi[i+1] = (calwave[i]+calwave[i+1])/2.
+        callo[i] = (calwave[i]+calwave[i+1])/2.
+    
+    obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calhi,10000./callo)
+
+    noise = fnoise*obsdepth
+    obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
+    for i in range(0,len(calwave)):
+        if(obs_flux[i]<0.): obs_flux[i] = 0.
+   
+    foutname = 'modelspectra' + outfile + 'NIRSpec2H.dat'
+    f2 = open(foutname,'w')
+    for i in range(0,len(calwave)-1):
+        f2.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
+
+elif outmode == 'NIRSpec3H':
+
+    calwave,flux_density,fnoise = AddNoise.addNoise(2,mode,specwave,newtdepth,noise_params,starspec)
+    calhi = np.zeros(len(calwave))
+    callo = np.zeros(len(calwave))
+    calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
+    callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
+    for i in range(0,len(calwave)-1):
+        calhi[i+1] = (calwave[i]+calwave[i+1])/2.
+        callo[i] = (calwave[i]+calwave[i+1])/2.
+    
+    obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calhi,10000./callo)
+
+    noise = fnoise*obsdepth
+    obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
+    for i in range(0,len(calwave)):
+        if(obs_flux[i]<0.): obs_flux[i] = 0.
+   
+    foutname = 'modelspectra' + outfile + 'NIRSpec3H.dat'
+    f3 = open(foutname,'w')
+    for i in range(0,len(calwave)-1):
+        f3.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
+
+elif outmode == 'NIRSpec4H':
+
+    calwave,flux_density,fnoise = AddNoise.addNoise(3,mode,specwave,newtdepth,noise_params,starspec)
+    calhi = np.zeros(len(calwave))
+    callo = np.zeros(len(calwave))
+    calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
+    callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
+    for i in range(0,len(calwave)-1):
+        calhi[i+1] = (calwave[i]+calwave[i+1])/2.
+        callo[i] = (calwave[i]+calwave[i+1])/2.
+    
+    obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calhi,10000./callo)
+
+    noise = fnoise*obsdepth
+    obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
+    for i in range(0,len(calwave)):
+        if(obs_flux[i]<0.): obs_flux[i] = 0.
+   
+    foutname = 'modelspectra' + outfile + 'NIRSpec4H.dat'
+    f4 = open(foutname,'w')
+    for i in range(0,len(calwave)-1):
+        f4.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
+
+elif outmode == 'NIRSpec4M':
+
+    calwave,flux_density,fnoise = AddNoise.addNoise(7,mode,specwave,newtdepth,noise_params,starspec)
+    calhi = np.zeros(len(calwave))
+    callo = np.zeros(len(calwave))
+    calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
+    callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
+    for i in range(0,len(calwave)-1):
+        calhi[i+1] = (calwave[i]+calwave[i+1])/2.
+        callo[i] = (calwave[i]+calwave[i+1])/2.
+
+    obsdepth = np.zeros(len(calwave))
+    obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calhi,10000./callo)
+
+    noise = fnoise*obsdepth
+    obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
+    for i in range(0,len(calwave)):
+        if(obs_flux[i]<0.): obs_flux[i] = 0.
+   
+    foutname = 'modelspectra' + outfile + 'NIRSpec4M.dat'
+    f5 = open(foutname,'w')
+    for i in range(0,len(calwave)-1):
+        f5.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
+
+elif outmode == 'Prism':
+
+    calwave,flux_density,fnoise = AddNoise.addNoise(8,mode,specwave,newtdepth,noise_params,starspec)
+    calhi = np.zeros(len(calwave))
+    callo = np.zeros(len(calwave))
+    calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
+    callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
+    for i in range(0,len(calwave)-1):
+        calhi[i+1] = (calwave[i]+calwave[i+1])/2.
+        callo[i] = (calwave[i]+calwave[i+1])/2.
+    
+    obsdepth = GetBinnedSpec(mode,specwave,newtdepth,10000./calhi,10000./callo)
+
+    noise = fnoise*obsdepth
+    obs_flux = obsdepth + np.random.normal(size=len(calwave))*noise
+    for i in range(0,len(calwave)):
+        if(obs_flux[i]<0.): obs_flux[i] = 0.
+   
+    foutname = 'modelspectra' + outfile + 'Prism.dat'
+    f6 = open(foutname,'w')
+    for i in range(0,len(calwave)-1):
+        f6.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(calhi[i],callo[i],obsdepth[i],noise[i],obs_flux[i]))
+
+else:
+    if os.path.exists(outmode):
+        calwave,flux_density,fnoise = AddNoise.addNoise(-1,mode,specwave,newtdepth,noise_params,starspec,outmode)
+        print 'Band Center: {0:8.2f} cm^-1'.format(calwave)
+        print 'Flux:     {0:12.5e} cgs'.format(flux_density)
+        print 'Noise:    {0:12.5e} cgs'.format(fnoise*flux_density)
+    else:
+        print 'Error: filter file not found.'

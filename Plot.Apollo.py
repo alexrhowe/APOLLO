@@ -61,7 +61,7 @@ if datatype == 'Spectrum':
         rflux[i]  = (float)(rlines[i].split()[2])
         rnoise[i] = (float)(rlines[i].split()[3])
 
-    rcalmid = 10000./((rcalhi + rcallo)/2.) + 0.00031 # Is that the wavelength offset?
+    rcalmid = 10000./((rcalhi + rcallo)/2.) + 0.0000 # Is that the wavelength offset?
     rbandwidth = np.fabs(np.gradient(rcalmid)) * 2.99792458e10
 
     # End input processing
@@ -94,6 +94,8 @@ if datatype == 'Spectrum':
     ymin = -0.20 * yref
     ymax =  1.05 * yref
 
+    # Plot with binned spectrum
+
     fig = plt.figure(figsize=(10,7))
     ax = fig.add_subplot(111)
     plt.axis((xmin,xmax,ymin,ymax))
@@ -104,8 +106,9 @@ if datatype == 'Spectrum':
 
     # May need a way to set the labels based on the input files
 
-    ax.plot(rcalmid,rflux,'-',linewidth=1,label='Observations',c='k')
-    ax.plot(dcalmid,dflux,'-',linewidth=1,label='Retrieved Spectrum',c='b')
+    ax.plot(rcalmid,bflux,'-',linewidth=1,label='Retrieved Spectrum (binned)',c='b')
+    #ax.plot(rcalmid,rflux,'o',linewidth=1,label='Observations',c='k')
+    ax.errorbar(rcalmid,rflux,rnoise,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
 
     residuals = bflux-rflux
     ax.plot(rcalmid,residuals+ymin/2.,'-',linewidth=1,label='Residuals (binned and offset)',c='r')
@@ -115,67 +118,112 @@ if datatype == 'Spectrum':
     # Add average error bar symbol
 
     plt.legend(fontsize=12)
-    figname = 'plots/' + outfile + 'fit.png'
+    figname = 'plots/' + outfile + 'binned.fit.png'
+    plt.savefig(figname) # Need to procedurally generate filename
+
+    # Plot with full-res spectrum
+    
+    fig = plt.figure(figsize=(10,7))
+    ax = fig.add_subplot(111)
+    plt.axis((xmin,xmax,ymin,ymax))
+    
+    plt.xlabel('$\lambda$ ($\mu$m)',fontsize=14)
+    plt.ylabel('Flux (cgs)',fontsize=14)
+    plt.tick_params(axis='both',which='major',labelsize=12)
+
+    # May need a way to set the labels based on the input files
+
+    ax.plot(dcalmid,dflux,'-',linewidth=1,label='Retrieved Spectrum',c='b')
+    #ax.plot(rcalmid,rflux,'o',linewidth=1,label='Observations',c='k')
+    ax.errorbar(rcalmid,rflux,rnoise,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
+
+    residuals = bflux-rflux
+    ax.plot(rcalmid,residuals+ymin/2.,'-',linewidth=1,label='Residuals (binned and offset)',c='r')
+    ax.plot([xmin,xmax],[0.,0.],'-',c='k')
+    ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
+
+    # Add average error bar symbol
+
+    plt.legend(fontsize=12)
+    figname = 'plots/' + outfile + 'fullres.fit.png'
     plt.savefig(figname) # Need to procedurally generate filename
 
     # Option to display plot
     #plt.show()
 
 elif datatype == 'Samples':
-    # Processing the sample file
+    confidence = 0.99
+    
+    if len(sys.argv)>4:
+        confidence = (float)(sys.argv[4])  # Optional confidence interval parameter.
+        
+    # Processing the sample file    
     line = fdata.readline().split()
     dim = [(int)(line[0]),(int)(line[1]),(int)(line[2])]
-    
+    if len(line)>3:
+        npress = (int)(line[3])
+        minP = (float)(line[4])
+        maxP = (float)(line[5])
     pnames = fdata.readline().split()
-    baselist = ['Rad','RtoD','RtoD2U','Log(g)','Cloud_Base','P_cl','Teff']
-    gaslist = ['h2','h-','h2o','ch4','co','co2','nh3','h2s','Burrows_alk','Lupu_alk','crh','feh','tio','vo']
+        
+    baselist = ['Rad','RtoD','RtoD2U','Log(g)','Cloud_Base','P_cl','Mass','C/O','[Fe/H]','Teff']
+    bnamelist = ['Radius (R$_J$)','Radius (R$_J$)','Radius (R$_J$)','log(g)','Base Pressure (bar)','Base Pressure (bar)','Mass (M$_J$)','C/O','[Fe/H]','T$_{eff}$ (K)']
+    
+    gaslist = ['h2','h2only','he','h-','h2o','ch4','co','co2','nh3','h2s','Burrows_alk','Lupu_alk','crh','feh','tio','vo','hcn','n2','ph3']
+    gnamelist = ['H$_2$+He','H$_2$','He','[H-]','[H$_2$O]','[CH$_4$]','[CO]','[CO$_2$]','[NH$_3$]','[H$_2$S]','[Na,K]','[Na,K]','[CrH]','[FeH]','[TiO]','[VO]','[HCN]','[N2]','[PH3]']
     basic = []
     bnames = []
+    bnames2 = []
     gases = [] 
     gnames = []
     temps = []
     for i in range(0,len(pnames)):
         if pnames[i] in baselist:
             basic.append(i)
-            bnames.append(pnames[i])
+            j = baselist.index(pnames[i])
+            bnames.append(bnamelist[j])
+            bnames2.append(pnames[i])
         if pnames[i] in gaslist:
             gases.append(i)
-            gnames.append(i)
+            j = gaslist.index(pnames[i])
+            gnames.append(gnamelist[j])
         if pnames[i][0]=='T' and not pnames[i]=='Teff': temps.append(i)
-    
-    samples = np.zeros((dim[0]*dim[1]/10,dim[2]))
+
+    samples = np.zeros((dim[0]*dim[1],dim[2]))
     for i in range(0,len(samples)):
         line = fdata.readline().split()
         for j in range(0,dim[2]):
             samples[i,j] = (float)(line[j])
-
-    minP = -3.0
-    maxP = 2.5
-    
+            
     bsamples = samples[:,basic]
     gsamples = samples[:,gases]
-
-    fig = corner.corner(gsamples,labels=gnames,plot_datapoints=False,labelsize=24)
+    tsamples = samples[:,temps]
+    
+    grange = np.zeros(len(gnames))
+    for i in range(0,len(gnames)): grange[i]=confidence
+    brange = np.zeros(len(bnames))
+    for i in range(0,len(bnames)): brange[i]=confidence
+    
+    fig = corner.corner(gsamples,labels=gnames,range=grange,plot_datapoints=False,labelsize=24)
     fig.subplots_adjust(left=0.10,bottom=0.10,wspace=0,hspace=0)
     fig1name = 'plots/' + outfile + 'gases.png'
     fig.savefig(fig1name)
 
-    fig2 = corner.corner(bsamples,labels=bnames,plot_datapoints=False,labelsize=24)
+    fig2 = corner.corner(bsamples,labels=bnames,range=brange,plot_datapoints=False,labelsize=24)
     fig2.subplots_adjust(left=0.10,bottom=0.10,wspace=0,hspace=0)
     fig2name = 'plots/' + outfile + 'basic.png'
     fig2.savefig(fig2name)
 
     plist = np.zeros(len(temps))
-    for i in range(0,len(temps)): plist[i] = 10**(maxP + (minP-maxP)*i/(len(temps)-1)) * 1.e-6
-    tlist = np.percentile(samples[:,temps],[16,50,84],axis=0)
-    print tlist
+    for i in range(0,len(temps)): plist[i] = 10**(maxP + (minP-maxP)*i/(len(temps)-1))
+    tlist = np.percentile(tsamples,[16,50,84],axis=0)
+    
     # Plot the T-P profile
     fit = np.percentile(samples,50,axis=0)
-    print fit
     
     fig3 = plt.figure(figsize=(8,6))
     ax = fig3.add_subplot(111)
-    plt.axis((0,3000,10**(maxP-6.),10**(minP-6.)))
+    plt.axis((0,3000,10**(maxP),10**(minP)))
     ax.set_yscale('log')
     plt.xlabel('T (K)',fontsize=14)
     plt.ylabel('P (bar)', fontsize=14)
@@ -187,6 +235,12 @@ elif datatype == 'Samples':
     
     fig3name = 'plots/' + outfile + 'TP.png'
     fig3.savefig(fig3name)
+
+    print '1-sigma bounds on basic parameters'
+    blist = np.percentile(bsamples,[16,50,84],axis=0)
+    for i in range(0,len(blist[0])):
+        if len(bnames2[i])<=6: print '{0:s}:\t\t {1:10.5f} {2:10.5f} {3:10.5f}'.format(bnames2[i],blist[0][i],blist[1][i],blist[2][i])
+        else: print '{0:s}:\t {1:10.5f} {2:10.5f} {3:10.5f}'.format(bnames2[i],blist[0][i],blist[1][i],blist[2][i])
     
 else:
     print 'Error: input type wrongly specified. Spectrum or Samples.'

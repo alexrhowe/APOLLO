@@ -1165,8 +1165,8 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t);
 
 /* Module declarations from 'wrapPlanet_layer' */
 static PyTypeObject *__pyx_ptype_16wrapPlanet_layer_PyPlanet = 0;
-static std::vector<double>  __pyx_convert_vector_from_py_double(PyObject *); /*proto*/
 static std::vector<int>  __pyx_convert_vector_from_py_int(PyObject *); /*proto*/
+static std::vector<double>  __pyx_convert_vector_from_py_double(PyObject *); /*proto*/
 static std::string __pyx_convert_string_from_py_std__in_string(PyObject *); /*proto*/
 static PyObject *__pyx_convert_vector_to_py_double(const std::vector<double>  &); /*proto*/
 #define __Pyx_MODULE_NAME "wrapPlanet_layer"
@@ -1181,21 +1181,22 @@ static const char __pyx_k_main[] = "__main__";
 static const char __pyx_k_name[] = "__name__";
 static const char __pyx_k_test[] = "__test__";
 static const char __pyx_k_abund[] = "abund";
+static const char __pyx_k_hires[] = "hires";
+static const char __pyx_k_lores[] = "lores";
 static const char __pyx_k_range[] = "range";
 static const char __pyx_k_rxsec[] = "rxsec";
+static const char __pyx_k_table[] = "table";
 static const char __pyx_k_reduce[] = "__reduce__";
 static const char __pyx_k_wavens[] = "wavens";
-static const char __pyx_k_wrange[] = "wrange";
-static const char __pyx_k_modenum[] = "modenum";
 static const char __pyx_k_mollist[] = "mollist";
 static const char __pyx_k_npoints[] = "npoints";
 static const char __pyx_k_opacdir[] = "opacdir";
 static const char __pyx_k_PyPlanet[] = "PyPlanet";
-static const char __pyx_k_cloudnum[] = "cloudnum";
 static const char __pyx_k_getstate[] = "__getstate__";
-static const char __pyx_k_hazetype[] = "hazetype";
 static const char __pyx_k_plparams[] = "plparams";
 static const char __pyx_k_setstate[] = "__setstate__";
+static const char __pyx_k_switches[] = "switches";
+static const char __pyx_k_wavenslo[] = "wavenslo";
 static const char __pyx_k_TypeError[] = "TypeError";
 static const char __pyx_k_reduce_ex[] = "__reduce_ex__";
 static const char __pyx_k_tpprofile[] = "tpprofile";
@@ -1207,11 +1208,10 @@ static PyObject *__pyx_n_s_PyPlanet;
 static PyObject *__pyx_n_s_TypeError;
 static PyObject *__pyx_n_s_abund;
 static PyObject *__pyx_n_s_cline_in_traceback;
-static PyObject *__pyx_n_s_cloudnum;
 static PyObject *__pyx_n_s_getstate;
-static PyObject *__pyx_n_s_hazetype;
+static PyObject *__pyx_n_s_hires;
+static PyObject *__pyx_n_s_lores;
 static PyObject *__pyx_n_s_main;
-static PyObject *__pyx_n_s_modenum;
 static PyObject *__pyx_n_s_mollist;
 static PyObject *__pyx_n_s_name;
 static PyObject *__pyx_kp_s_no_default___reduce___due_to_non;
@@ -1226,21 +1226,24 @@ static PyObject *__pyx_n_s_rs;
 static PyObject *__pyx_n_s_rxsec;
 static PyObject *__pyx_n_s_setstate;
 static PyObject *__pyx_n_s_setstate_cython;
+static PyObject *__pyx_n_s_switches;
+static PyObject *__pyx_n_s_table;
 static PyObject *__pyx_n_s_test;
 static PyObject *__pyx_n_s_tpprofile;
 static PyObject *__pyx_n_s_wavens;
-static PyObject *__pyx_n_s_wrange;
+static PyObject *__pyx_n_s_wavenslo;
 static int __pyx_pf_16wrapPlanet_layer_8PyPlanet___cinit__(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self); /* proto */
 static void __pyx_pf_16wrapPlanet_layer_8PyPlanet_2__dealloc__(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_4MakePlanet(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_modenum, PyObject *__pyx_v_wavens, PyObject *__pyx_v_cloudnum, PyObject *__pyx_v_hazetype, PyObject *__pyx_v_wrange, PyObject *__pyx_v_mollist, PyObject *__pyx_v_opacdir); /* proto */
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_6set_Params(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_plparams, PyObject *__pyx_v_abund, PyObject *__pyx_v_tpprofile); /* proto */
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_8get_Spectrum(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_streams); /* proto */
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_10readopac(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_mollist, PyObject *__pyx_v_wavens, PyObject *__pyx_v_opacdir); /* proto */
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_12setWave(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_npoints, PyObject *__pyx_v_rxsec, PyObject *__pyx_v_wavens, PyObject *__pyx_v_abund); /* proto */
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_14getFlux(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_wavens); /* proto */
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_16transFlux(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_rs, PyObject *__pyx_v_wavens); /* proto */
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_18__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_20__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state); /* proto */
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_4MakePlanet(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_switches, PyObject *__pyx_v_wavens, PyObject *__pyx_v_wavenslo, PyObject *__pyx_v_mollist, PyObject *__pyx_v_opacdir, PyObject *__pyx_v_hires, PyObject *__pyx_v_lores); /* proto */
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_6get_Teff(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_8set_Params(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_plparams, PyObject *__pyx_v_abund, PyObject *__pyx_v_tpprofile); /* proto */
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_10get_Spectrum(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_streams); /* proto */
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_12readopac(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_mollist, PyObject *__pyx_v_wavens, PyObject *__pyx_v_table, PyObject *__pyx_v_opacdir); /* proto */
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_14setWave(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_npoints, PyObject *__pyx_v_rxsec, PyObject *__pyx_v_wavens, PyObject *__pyx_v_abund); /* proto */
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_16getFlux(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_wavens); /* proto */
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_18transFlux(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_rs, PyObject *__pyx_v_wavens); /* proto */
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_20__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_22__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state); /* proto */
 static PyObject *__pyx_tp_new_16wrapPlanet_layer_PyPlanet(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
 static PyObject *__pyx_tuple_;
 static PyObject *__pyx_tuple__2;
@@ -1337,7 +1340,7 @@ static void __pyx_pf_16wrapPlanet_layer_8PyPlanet_2__dealloc__(struct __pyx_obj_
  *         if self.thisptr is not NULL:
  *             del self.thisptr             # <<<<<<<<<<<<<<
  * 
- *     def MakePlanet(self, modenum, wavens, cloudnum, hazetype, wrange, mollist, opacdir):
+ *     def MakePlanet(self, switches, wavens, wavenslo, mollist, opacdir, hires, lores):
  */
     delete __pyx_v_self->thisptr;
 
@@ -1365,26 +1368,26 @@ static void __pyx_pf_16wrapPlanet_layer_8PyPlanet_2__dealloc__(struct __pyx_obj_
 /* "wrapPlanet_layer.pyx":14
  *             del self.thisptr
  * 
- *     def MakePlanet(self, modenum, wavens, cloudnum, hazetype, wrange, mollist, opacdir):             # <<<<<<<<<<<<<<
- *         self.thisptr = new Planet(modenum, wavens, cloudnum, hazetype, wrange, mollist, opacdir)
+ *     def MakePlanet(self, switches, wavens, wavenslo, mollist, opacdir, hires, lores):             # <<<<<<<<<<<<<<
+ *         self.thisptr = new Planet(switches, wavens, wavenslo, mollist, opacdir, hires, lores)
  * 
  */
 
 /* Python wrapper */
 static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_5MakePlanet(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
 static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_5MakePlanet(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
-  PyObject *__pyx_v_modenum = 0;
+  PyObject *__pyx_v_switches = 0;
   PyObject *__pyx_v_wavens = 0;
-  PyObject *__pyx_v_cloudnum = 0;
-  PyObject *__pyx_v_hazetype = 0;
-  PyObject *__pyx_v_wrange = 0;
+  PyObject *__pyx_v_wavenslo = 0;
   PyObject *__pyx_v_mollist = 0;
   PyObject *__pyx_v_opacdir = 0;
+  PyObject *__pyx_v_hires = 0;
+  PyObject *__pyx_v_lores = 0;
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("MakePlanet (wrapper)", 0);
   {
-    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_modenum,&__pyx_n_s_wavens,&__pyx_n_s_cloudnum,&__pyx_n_s_hazetype,&__pyx_n_s_wrange,&__pyx_n_s_mollist,&__pyx_n_s_opacdir,0};
+    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_switches,&__pyx_n_s_wavens,&__pyx_n_s_wavenslo,&__pyx_n_s_mollist,&__pyx_n_s_opacdir,&__pyx_n_s_hires,&__pyx_n_s_lores,0};
     PyObject* values[7] = {0,0,0,0,0,0,0};
     if (unlikely(__pyx_kwds)) {
       Py_ssize_t kw_args;
@@ -1410,7 +1413,7 @@ static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_5MakePlanet(PyObject *__p
       kw_args = PyDict_Size(__pyx_kwds);
       switch (pos_args) {
         case  0:
-        if (likely((values[0] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_modenum)) != 0)) kw_args--;
+        if (likely((values[0] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_switches)) != 0)) kw_args--;
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
@@ -1420,31 +1423,31 @@ static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_5MakePlanet(PyObject *__p
         }
         CYTHON_FALLTHROUGH;
         case  2:
-        if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_cloudnum)) != 0)) kw_args--;
+        if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_wavenslo)) != 0)) kw_args--;
         else {
           __Pyx_RaiseArgtupleInvalid("MakePlanet", 1, 7, 7, 2); __PYX_ERR(1, 14, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  3:
-        if (likely((values[3] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_hazetype)) != 0)) kw_args--;
+        if (likely((values[3] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_mollist)) != 0)) kw_args--;
         else {
           __Pyx_RaiseArgtupleInvalid("MakePlanet", 1, 7, 7, 3); __PYX_ERR(1, 14, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  4:
-        if (likely((values[4] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_wrange)) != 0)) kw_args--;
+        if (likely((values[4] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_opacdir)) != 0)) kw_args--;
         else {
           __Pyx_RaiseArgtupleInvalid("MakePlanet", 1, 7, 7, 4); __PYX_ERR(1, 14, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  5:
-        if (likely((values[5] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_mollist)) != 0)) kw_args--;
+        if (likely((values[5] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_hires)) != 0)) kw_args--;
         else {
           __Pyx_RaiseArgtupleInvalid("MakePlanet", 1, 7, 7, 5); __PYX_ERR(1, 14, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  6:
-        if (likely((values[6] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_opacdir)) != 0)) kw_args--;
+        if (likely((values[6] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_lores)) != 0)) kw_args--;
         else {
           __Pyx_RaiseArgtupleInvalid("MakePlanet", 1, 7, 7, 6); __PYX_ERR(1, 14, __pyx_L3_error)
         }
@@ -1463,13 +1466,13 @@ static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_5MakePlanet(PyObject *__p
       values[5] = PyTuple_GET_ITEM(__pyx_args, 5);
       values[6] = PyTuple_GET_ITEM(__pyx_args, 6);
     }
-    __pyx_v_modenum = values[0];
+    __pyx_v_switches = values[0];
     __pyx_v_wavens = values[1];
-    __pyx_v_cloudnum = values[2];
-    __pyx_v_hazetype = values[3];
-    __pyx_v_wrange = values[4];
-    __pyx_v_mollist = values[5];
-    __pyx_v_opacdir = values[6];
+    __pyx_v_wavenslo = values[2];
+    __pyx_v_mollist = values[3];
+    __pyx_v_opacdir = values[4];
+    __pyx_v_hires = values[5];
+    __pyx_v_lores = values[6];
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
@@ -1479,40 +1482,40 @@ static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_5MakePlanet(PyObject *__p
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_4MakePlanet(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), __pyx_v_modenum, __pyx_v_wavens, __pyx_v_cloudnum, __pyx_v_hazetype, __pyx_v_wrange, __pyx_v_mollist, __pyx_v_opacdir);
+  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_4MakePlanet(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), __pyx_v_switches, __pyx_v_wavens, __pyx_v_wavenslo, __pyx_v_mollist, __pyx_v_opacdir, __pyx_v_hires, __pyx_v_lores);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_4MakePlanet(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_modenum, PyObject *__pyx_v_wavens, PyObject *__pyx_v_cloudnum, PyObject *__pyx_v_hazetype, PyObject *__pyx_v_wrange, PyObject *__pyx_v_mollist, PyObject *__pyx_v_opacdir) {
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_4MakePlanet(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_switches, PyObject *__pyx_v_wavens, PyObject *__pyx_v_wavenslo, PyObject *__pyx_v_mollist, PyObject *__pyx_v_opacdir, PyObject *__pyx_v_hires, PyObject *__pyx_v_lores) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
-  int __pyx_t_1;
+  std::vector<int>  __pyx_t_1;
   std::vector<double>  __pyx_t_2;
-  int __pyx_t_3;
-  int __pyx_t_4;
-  int __pyx_t_5;
-  std::vector<int>  __pyx_t_6;
+  std::vector<double>  __pyx_t_3;
+  std::vector<int>  __pyx_t_4;
+  std::string __pyx_t_5;
+  std::string __pyx_t_6;
   std::string __pyx_t_7;
   Planet *__pyx_t_8;
   __Pyx_RefNannySetupContext("MakePlanet", 0);
 
   /* "wrapPlanet_layer.pyx":15
  * 
- *     def MakePlanet(self, modenum, wavens, cloudnum, hazetype, wrange, mollist, opacdir):
- *         self.thisptr = new Planet(modenum, wavens, cloudnum, hazetype, wrange, mollist, opacdir)             # <<<<<<<<<<<<<<
+ *     def MakePlanet(self, switches, wavens, wavenslo, mollist, opacdir, hires, lores):
+ *         self.thisptr = new Planet(switches, wavens, wavenslo, mollist, opacdir, hires, lores)             # <<<<<<<<<<<<<<
  * 
- *     def set_Params(self, plparams, abund, tpprofile):
+ *     def get_Teff(self):
  */
-  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_modenum); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
+  __pyx_t_1 = __pyx_convert_vector_from_py_int(__pyx_v_switches); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
   __pyx_t_2 = __pyx_convert_vector_from_py_double(__pyx_v_wavens); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
-  __pyx_t_3 = __Pyx_PyInt_As_int(__pyx_v_cloudnum); if (unlikely((__pyx_t_3 == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
-  __pyx_t_4 = __Pyx_PyInt_As_int(__pyx_v_hazetype); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
-  __pyx_t_5 = __Pyx_PyInt_As_int(__pyx_v_wrange); if (unlikely((__pyx_t_5 == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
-  __pyx_t_6 = __pyx_convert_vector_from_py_int(__pyx_v_mollist); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
-  __pyx_t_7 = __pyx_convert_string_from_py_std__in_string(__pyx_v_opacdir); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
+  __pyx_t_3 = __pyx_convert_vector_from_py_double(__pyx_v_wavenslo); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
+  __pyx_t_4 = __pyx_convert_vector_from_py_int(__pyx_v_mollist); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
+  __pyx_t_5 = __pyx_convert_string_from_py_std__in_string(__pyx_v_opacdir); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
+  __pyx_t_6 = __pyx_convert_string_from_py_std__in_string(__pyx_v_hires); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
+  __pyx_t_7 = __pyx_convert_string_from_py_std__in_string(__pyx_v_lores); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 15, __pyx_L1_error)
   try {
     __pyx_t_8 = new Planet(__pyx_t_1, __pyx_t_2, __pyx_t_3, __pyx_t_4, __pyx_t_5, __pyx_t_6, __pyx_t_7);
   } catch(...) {
@@ -1524,8 +1527,8 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_4MakePlanet(struct __pyx_
   /* "wrapPlanet_layer.pyx":14
  *             del self.thisptr
  * 
- *     def MakePlanet(self, modenum, wavens, cloudnum, hazetype, wrange, mollist, opacdir):             # <<<<<<<<<<<<<<
- *         self.thisptr = new Planet(modenum, wavens, cloudnum, hazetype, wrange, mollist, opacdir)
+ *     def MakePlanet(self, switches, wavens, wavenslo, mollist, opacdir, hires, lores):             # <<<<<<<<<<<<<<
+ *         self.thisptr = new Planet(switches, wavens, wavenslo, mollist, opacdir, hires, lores)
  * 
  */
 
@@ -1542,7 +1545,67 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_4MakePlanet(struct __pyx_
 }
 
 /* "wrapPlanet_layer.pyx":17
- *         self.thisptr = new Planet(modenum, wavens, cloudnum, hazetype, wrange, mollist, opacdir)
+ *         self.thisptr = new Planet(switches, wavens, wavenslo, mollist, opacdir, hires, lores)
+ * 
+ *     def get_Teff(self):             # <<<<<<<<<<<<<<
+ *         return self.thisptr.getTeff()
+ * 
+ */
+
+/* Python wrapper */
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_7get_Teff(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused); /*proto*/
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_7get_Teff(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused) {
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("get_Teff (wrapper)", 0);
+  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_6get_Teff(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self));
+
+  /* function exit code */
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_6get_Teff(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self) {
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  __Pyx_RefNannySetupContext("get_Teff", 0);
+
+  /* "wrapPlanet_layer.pyx":18
+ * 
+ *     def get_Teff(self):
+ *         return self.thisptr.getTeff()             # <<<<<<<<<<<<<<
+ * 
+ *     def set_Params(self, plparams, abund, tpprofile):
+ */
+  __Pyx_XDECREF(__pyx_r);
+  __pyx_t_1 = PyFloat_FromDouble(__pyx_v_self->thisptr->getTeff()); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 18, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_r = __pyx_t_1;
+  __pyx_t_1 = 0;
+  goto __pyx_L0;
+
+  /* "wrapPlanet_layer.pyx":17
+ *         self.thisptr = new Planet(switches, wavens, wavenslo, mollist, opacdir, hires, lores)
+ * 
+ *     def get_Teff(self):             # <<<<<<<<<<<<<<
+ *         return self.thisptr.getTeff()
+ * 
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_AddTraceback("wrapPlanet_layer.PyPlanet.get_Teff", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "wrapPlanet_layer.pyx":20
+ *         return self.thisptr.getTeff()
  * 
  *     def set_Params(self, plparams, abund, tpprofile):             # <<<<<<<<<<<<<<
  *         return self.thisptr.setParams(plparams, abund, tpprofile)
@@ -1550,8 +1613,8 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_4MakePlanet(struct __pyx_
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_7set_Params(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_7set_Params(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_9set_Params(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_9set_Params(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_plparams = 0;
   PyObject *__pyx_v_abund = 0;
   PyObject *__pyx_v_tpprofile = 0;
@@ -1583,17 +1646,17 @@ static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_7set_Params(PyObject *__p
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_abund)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("set_Params", 1, 3, 3, 1); __PYX_ERR(1, 17, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("set_Params", 1, 3, 3, 1); __PYX_ERR(1, 20, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_tpprofile)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("set_Params", 1, 3, 3, 2); __PYX_ERR(1, 17, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("set_Params", 1, 3, 3, 2); __PYX_ERR(1, 20, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "set_Params") < 0)) __PYX_ERR(1, 17, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "set_Params") < 0)) __PYX_ERR(1, 20, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
       goto __pyx_L5_argtuple_error;
@@ -1608,20 +1671,20 @@ static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_7set_Params(PyObject *__p
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("set_Params", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(1, 17, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("set_Params", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(1, 20, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("wrapPlanet_layer.PyPlanet.set_Params", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_6set_Params(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), __pyx_v_plparams, __pyx_v_abund, __pyx_v_tpprofile);
+  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_8set_Params(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), __pyx_v_plparams, __pyx_v_abund, __pyx_v_tpprofile);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_6set_Params(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_plparams, PyObject *__pyx_v_abund, PyObject *__pyx_v_tpprofile) {
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_8set_Params(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_plparams, PyObject *__pyx_v_abund, PyObject *__pyx_v_tpprofile) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   std::vector<double>  __pyx_t_1;
@@ -1630,7 +1693,7 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_6set_Params(struct __pyx_
   PyObject *__pyx_t_4 = NULL;
   __Pyx_RefNannySetupContext("set_Params", 0);
 
-  /* "wrapPlanet_layer.pyx":18
+  /* "wrapPlanet_layer.pyx":21
  * 
  *     def set_Params(self, plparams, abund, tpprofile):
  *         return self.thisptr.setParams(plparams, abund, tpprofile)             # <<<<<<<<<<<<<<
@@ -1638,17 +1701,17 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_6set_Params(struct __pyx_
  *     def get_Spectrum(self, streams):
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_convert_vector_from_py_double(__pyx_v_plparams); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 18, __pyx_L1_error)
-  __pyx_t_2 = __pyx_convert_vector_from_py_double(__pyx_v_abund); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 18, __pyx_L1_error)
-  __pyx_t_3 = __pyx_convert_vector_from_py_double(__pyx_v_tpprofile); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 18, __pyx_L1_error)
-  __pyx_t_4 = __Pyx_void_to_None(__pyx_v_self->thisptr->setParams(__pyx_t_1, __pyx_t_2, __pyx_t_3)); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 18, __pyx_L1_error)
+  __pyx_t_1 = __pyx_convert_vector_from_py_double(__pyx_v_plparams); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 21, __pyx_L1_error)
+  __pyx_t_2 = __pyx_convert_vector_from_py_double(__pyx_v_abund); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 21, __pyx_L1_error)
+  __pyx_t_3 = __pyx_convert_vector_from_py_double(__pyx_v_tpprofile); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 21, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_void_to_None(__pyx_v_self->thisptr->setParams(__pyx_t_1, __pyx_t_2, __pyx_t_3)); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 21, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __pyx_r = __pyx_t_4;
   __pyx_t_4 = 0;
   goto __pyx_L0;
 
-  /* "wrapPlanet_layer.pyx":17
- *         self.thisptr = new Planet(modenum, wavens, cloudnum, hazetype, wrange, mollist, opacdir)
+  /* "wrapPlanet_layer.pyx":20
+ *         return self.thisptr.getTeff()
  * 
  *     def set_Params(self, plparams, abund, tpprofile):             # <<<<<<<<<<<<<<
  *         return self.thisptr.setParams(plparams, abund, tpprofile)
@@ -1666,7 +1729,7 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_6set_Params(struct __pyx_
   return __pyx_r;
 }
 
-/* "wrapPlanet_layer.pyx":20
+/* "wrapPlanet_layer.pyx":23
  *         return self.thisptr.setParams(plparams, abund, tpprofile)
  * 
  *     def get_Spectrum(self, streams):             # <<<<<<<<<<<<<<
@@ -1675,41 +1738,41 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_6set_Params(struct __pyx_
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_9get_Spectrum(PyObject *__pyx_v_self, PyObject *__pyx_v_streams); /*proto*/
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_9get_Spectrum(PyObject *__pyx_v_self, PyObject *__pyx_v_streams) {
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_11get_Spectrum(PyObject *__pyx_v_self, PyObject *__pyx_v_streams); /*proto*/
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_11get_Spectrum(PyObject *__pyx_v_self, PyObject *__pyx_v_streams) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("get_Spectrum (wrapper)", 0);
-  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_8get_Spectrum(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), ((PyObject *)__pyx_v_streams));
+  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_10get_Spectrum(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), ((PyObject *)__pyx_v_streams));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_8get_Spectrum(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_streams) {
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_10get_Spectrum(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_streams) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   int __pyx_t_1;
   PyObject *__pyx_t_2 = NULL;
   __Pyx_RefNannySetupContext("get_Spectrum", 0);
 
-  /* "wrapPlanet_layer.pyx":21
+  /* "wrapPlanet_layer.pyx":24
  * 
  *     def get_Spectrum(self, streams):
  *         return self.thisptr.getSpectrum(streams)             # <<<<<<<<<<<<<<
  * 
- *     def readopac(self, mollist, wavens, opacdir):
+ *     def readopac(self, mollist, wavens, table, opacdir):
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_streams); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 21, __pyx_L1_error)
-  __pyx_t_2 = __pyx_convert_vector_to_py_double(__pyx_v_self->thisptr->getSpectrum(__pyx_t_1)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 21, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_streams); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 24, __pyx_L1_error)
+  __pyx_t_2 = __pyx_convert_vector_to_py_double(__pyx_v_self->thisptr->getSpectrum(__pyx_t_1)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 24, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_r = __pyx_t_2;
   __pyx_t_2 = 0;
   goto __pyx_L0;
 
-  /* "wrapPlanet_layer.pyx":20
+  /* "wrapPlanet_layer.pyx":23
  *         return self.thisptr.setParams(plparams, abund, tpprofile)
  * 
  *     def get_Spectrum(self, streams):             # <<<<<<<<<<<<<<
@@ -1728,30 +1791,33 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_8get_Spectrum(struct __py
   return __pyx_r;
 }
 
-/* "wrapPlanet_layer.pyx":23
+/* "wrapPlanet_layer.pyx":26
  *         return self.thisptr.getSpectrum(streams)
  * 
- *     def readopac(self, mollist, wavens, opacdir):             # <<<<<<<<<<<<<<
- *         return self.thisptr.readopac(mollist, wavens, opacdir)
+ *     def readopac(self, mollist, wavens, table, opacdir):             # <<<<<<<<<<<<<<
+ *         return self.thisptr.readopac(mollist, wavens, table, opacdir)
  * 
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_11readopac(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_11readopac(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_13readopac(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_13readopac(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_mollist = 0;
   PyObject *__pyx_v_wavens = 0;
+  PyObject *__pyx_v_table = 0;
   PyObject *__pyx_v_opacdir = 0;
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("readopac (wrapper)", 0);
   {
-    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_mollist,&__pyx_n_s_wavens,&__pyx_n_s_opacdir,0};
-    PyObject* values[3] = {0,0,0};
+    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_mollist,&__pyx_n_s_wavens,&__pyx_n_s_table,&__pyx_n_s_opacdir,0};
+    PyObject* values[4] = {0,0,0,0};
     if (unlikely(__pyx_kwds)) {
       Py_ssize_t kw_args;
       const Py_ssize_t pos_args = PyTuple_GET_SIZE(__pyx_args);
       switch (pos_args) {
+        case  4: values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
+        CYTHON_FALLTHROUGH;
         case  3: values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
         CYTHON_FALLTHROUGH;
         case  2: values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
@@ -1770,81 +1836,91 @@ static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_11readopac(PyObject *__py
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_wavens)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("readopac", 1, 3, 3, 1); __PYX_ERR(1, 23, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("readopac", 1, 4, 4, 1); __PYX_ERR(1, 26, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
-        if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_opacdir)) != 0)) kw_args--;
+        if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_table)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("readopac", 1, 3, 3, 2); __PYX_ERR(1, 23, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("readopac", 1, 4, 4, 2); __PYX_ERR(1, 26, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case  3:
+        if (likely((values[3] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_opacdir)) != 0)) kw_args--;
+        else {
+          __Pyx_RaiseArgtupleInvalid("readopac", 1, 4, 4, 3); __PYX_ERR(1, 26, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "readopac") < 0)) __PYX_ERR(1, 23, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "readopac") < 0)) __PYX_ERR(1, 26, __pyx_L3_error)
       }
-    } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
+    } else if (PyTuple_GET_SIZE(__pyx_args) != 4) {
       goto __pyx_L5_argtuple_error;
     } else {
       values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
       values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
       values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
+      values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
     }
     __pyx_v_mollist = values[0];
     __pyx_v_wavens = values[1];
-    __pyx_v_opacdir = values[2];
+    __pyx_v_table = values[2];
+    __pyx_v_opacdir = values[3];
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("readopac", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(1, 23, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("readopac", 1, 4, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(1, 26, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("wrapPlanet_layer.PyPlanet.readopac", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_10readopac(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), __pyx_v_mollist, __pyx_v_wavens, __pyx_v_opacdir);
+  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_12readopac(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), __pyx_v_mollist, __pyx_v_wavens, __pyx_v_table, __pyx_v_opacdir);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_10readopac(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_mollist, PyObject *__pyx_v_wavens, PyObject *__pyx_v_opacdir) {
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_12readopac(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_mollist, PyObject *__pyx_v_wavens, PyObject *__pyx_v_table, PyObject *__pyx_v_opacdir) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   std::vector<int>  __pyx_t_1;
   std::vector<double>  __pyx_t_2;
   std::string __pyx_t_3;
-  PyObject *__pyx_t_4 = NULL;
+  std::string __pyx_t_4;
+  PyObject *__pyx_t_5 = NULL;
   __Pyx_RefNannySetupContext("readopac", 0);
 
-  /* "wrapPlanet_layer.pyx":24
+  /* "wrapPlanet_layer.pyx":27
  * 
- *     def readopac(self, mollist, wavens, opacdir):
- *         return self.thisptr.readopac(mollist, wavens, opacdir)             # <<<<<<<<<<<<<<
+ *     def readopac(self, mollist, wavens, table, opacdir):
+ *         return self.thisptr.readopac(mollist, wavens, table, opacdir)             # <<<<<<<<<<<<<<
  * 
  *     def setWave(self, npoints, rxsec, wavens, abund):
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_convert_vector_from_py_int(__pyx_v_mollist); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 24, __pyx_L1_error)
-  __pyx_t_2 = __pyx_convert_vector_from_py_double(__pyx_v_wavens); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 24, __pyx_L1_error)
-  __pyx_t_3 = __pyx_convert_string_from_py_std__in_string(__pyx_v_opacdir); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 24, __pyx_L1_error)
-  __pyx_t_4 = __Pyx_void_to_None(__pyx_v_self->thisptr->readopac(__pyx_t_1, __pyx_t_2, __pyx_t_3)); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 24, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_4);
-  __pyx_r = __pyx_t_4;
-  __pyx_t_4 = 0;
+  __pyx_t_1 = __pyx_convert_vector_from_py_int(__pyx_v_mollist); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 27, __pyx_L1_error)
+  __pyx_t_2 = __pyx_convert_vector_from_py_double(__pyx_v_wavens); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 27, __pyx_L1_error)
+  __pyx_t_3 = __pyx_convert_string_from_py_std__in_string(__pyx_v_table); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 27, __pyx_L1_error)
+  __pyx_t_4 = __pyx_convert_string_from_py_std__in_string(__pyx_v_opacdir); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 27, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_void_to_None(__pyx_v_self->thisptr->readopac(__pyx_t_1, __pyx_t_2, __pyx_t_3, __pyx_t_4)); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 27, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_5);
+  __pyx_r = __pyx_t_5;
+  __pyx_t_5 = 0;
   goto __pyx_L0;
 
-  /* "wrapPlanet_layer.pyx":23
+  /* "wrapPlanet_layer.pyx":26
  *         return self.thisptr.getSpectrum(streams)
  * 
- *     def readopac(self, mollist, wavens, opacdir):             # <<<<<<<<<<<<<<
- *         return self.thisptr.readopac(mollist, wavens, opacdir)
+ *     def readopac(self, mollist, wavens, table, opacdir):             # <<<<<<<<<<<<<<
+ *         return self.thisptr.readopac(mollist, wavens, table, opacdir)
  * 
  */
 
   /* function exit code */
   __pyx_L1_error:;
-  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_5);
   __Pyx_AddTraceback("wrapPlanet_layer.PyPlanet.readopac", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
@@ -1853,8 +1929,8 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_10readopac(struct __pyx_o
   return __pyx_r;
 }
 
-/* "wrapPlanet_layer.pyx":26
- *         return self.thisptr.readopac(mollist, wavens, opacdir)
+/* "wrapPlanet_layer.pyx":29
+ *         return self.thisptr.readopac(mollist, wavens, table, opacdir)
  * 
  *     def setWave(self, npoints, rxsec, wavens, abund):             # <<<<<<<<<<<<<<
  *         return self.thisptr.setWave(npoints, rxsec, wavens, abund)
@@ -1862,8 +1938,8 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_10readopac(struct __pyx_o
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_13setWave(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_13setWave(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_15setWave(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_15setWave(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_npoints = 0;
   PyObject *__pyx_v_rxsec = 0;
   PyObject *__pyx_v_wavens = 0;
@@ -1898,23 +1974,23 @@ static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_13setWave(PyObject *__pyx
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_rxsec)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("setWave", 1, 4, 4, 1); __PYX_ERR(1, 26, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("setWave", 1, 4, 4, 1); __PYX_ERR(1, 29, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_wavens)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("setWave", 1, 4, 4, 2); __PYX_ERR(1, 26, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("setWave", 1, 4, 4, 2); __PYX_ERR(1, 29, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  3:
         if (likely((values[3] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_abund)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("setWave", 1, 4, 4, 3); __PYX_ERR(1, 26, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("setWave", 1, 4, 4, 3); __PYX_ERR(1, 29, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "setWave") < 0)) __PYX_ERR(1, 26, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "setWave") < 0)) __PYX_ERR(1, 29, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 4) {
       goto __pyx_L5_argtuple_error;
@@ -1931,20 +2007,20 @@ static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_13setWave(PyObject *__pyx
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("setWave", 1, 4, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(1, 26, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("setWave", 1, 4, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(1, 29, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("wrapPlanet_layer.PyPlanet.setWave", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_12setWave(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), __pyx_v_npoints, __pyx_v_rxsec, __pyx_v_wavens, __pyx_v_abund);
+  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_14setWave(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), __pyx_v_npoints, __pyx_v_rxsec, __pyx_v_wavens, __pyx_v_abund);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_12setWave(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_npoints, PyObject *__pyx_v_rxsec, PyObject *__pyx_v_wavens, PyObject *__pyx_v_abund) {
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_14setWave(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_npoints, PyObject *__pyx_v_rxsec, PyObject *__pyx_v_wavens, PyObject *__pyx_v_abund) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   int __pyx_t_1;
@@ -1954,7 +2030,7 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_12setWave(struct __pyx_ob
   PyObject *__pyx_t_5 = NULL;
   __Pyx_RefNannySetupContext("setWave", 0);
 
-  /* "wrapPlanet_layer.pyx":27
+  /* "wrapPlanet_layer.pyx":30
  * 
  *     def setWave(self, npoints, rxsec, wavens, abund):
  *         return self.thisptr.setWave(npoints, rxsec, wavens, abund)             # <<<<<<<<<<<<<<
@@ -1962,18 +2038,18 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_12setWave(struct __pyx_ob
  *     def getFlux(self, wavens):
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_npoints); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 27, __pyx_L1_error)
-  __pyx_t_2 = __pyx_PyFloat_AsDouble(__pyx_v_rxsec); if (unlikely((__pyx_t_2 == (double)-1) && PyErr_Occurred())) __PYX_ERR(1, 27, __pyx_L1_error)
-  __pyx_t_3 = __pyx_convert_vector_from_py_double(__pyx_v_wavens); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 27, __pyx_L1_error)
-  __pyx_t_4 = __pyx_convert_vector_from_py_double(__pyx_v_abund); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 27, __pyx_L1_error)
-  __pyx_t_5 = __Pyx_void_to_None(__pyx_v_self->thisptr->setWave(__pyx_t_1, __pyx_t_2, __pyx_t_3, __pyx_t_4)); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 27, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_npoints); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 30, __pyx_L1_error)
+  __pyx_t_2 = __pyx_PyFloat_AsDouble(__pyx_v_rxsec); if (unlikely((__pyx_t_2 == (double)-1) && PyErr_Occurred())) __PYX_ERR(1, 30, __pyx_L1_error)
+  __pyx_t_3 = __pyx_convert_vector_from_py_double(__pyx_v_wavens); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 30, __pyx_L1_error)
+  __pyx_t_4 = __pyx_convert_vector_from_py_double(__pyx_v_abund); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 30, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_void_to_None(__pyx_v_self->thisptr->setWave(__pyx_t_1, __pyx_t_2, __pyx_t_3, __pyx_t_4)); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 30, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __pyx_r = __pyx_t_5;
   __pyx_t_5 = 0;
   goto __pyx_L0;
 
-  /* "wrapPlanet_layer.pyx":26
- *         return self.thisptr.readopac(mollist, wavens, opacdir)
+  /* "wrapPlanet_layer.pyx":29
+ *         return self.thisptr.readopac(mollist, wavens, table, opacdir)
  * 
  *     def setWave(self, npoints, rxsec, wavens, abund):             # <<<<<<<<<<<<<<
  *         return self.thisptr.setWave(npoints, rxsec, wavens, abund)
@@ -1991,7 +2067,7 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_12setWave(struct __pyx_ob
   return __pyx_r;
 }
 
-/* "wrapPlanet_layer.pyx":29
+/* "wrapPlanet_layer.pyx":32
  *         return self.thisptr.setWave(npoints, rxsec, wavens, abund)
  * 
  *     def getFlux(self, wavens):             # <<<<<<<<<<<<<<
@@ -2000,26 +2076,26 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_12setWave(struct __pyx_ob
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_15getFlux(PyObject *__pyx_v_self, PyObject *__pyx_v_wavens); /*proto*/
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_15getFlux(PyObject *__pyx_v_self, PyObject *__pyx_v_wavens) {
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_17getFlux(PyObject *__pyx_v_self, PyObject *__pyx_v_wavens); /*proto*/
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_17getFlux(PyObject *__pyx_v_self, PyObject *__pyx_v_wavens) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("getFlux (wrapper)", 0);
-  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_14getFlux(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), ((PyObject *)__pyx_v_wavens));
+  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_16getFlux(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), ((PyObject *)__pyx_v_wavens));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_14getFlux(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_wavens) {
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_16getFlux(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_wavens) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   std::vector<double>  __pyx_t_1;
   PyObject *__pyx_t_2 = NULL;
   __Pyx_RefNannySetupContext("getFlux", 0);
 
-  /* "wrapPlanet_layer.pyx":30
+  /* "wrapPlanet_layer.pyx":33
  * 
  *     def getFlux(self, wavens):
  *         return self.thisptr.getFlux(wavens)             # <<<<<<<<<<<<<<
@@ -2027,14 +2103,14 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_14getFlux(struct __pyx_ob
  *     def transFlux(self, rs, wavens):
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_convert_vector_from_py_double(__pyx_v_wavens); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 30, __pyx_L1_error)
-  __pyx_t_2 = __pyx_convert_vector_to_py_double(__pyx_v_self->thisptr->getFlux(__pyx_t_1)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 30, __pyx_L1_error)
+  __pyx_t_1 = __pyx_convert_vector_from_py_double(__pyx_v_wavens); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 33, __pyx_L1_error)
+  __pyx_t_2 = __pyx_convert_vector_to_py_double(__pyx_v_self->thisptr->getFlux(__pyx_t_1)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 33, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_r = __pyx_t_2;
   __pyx_t_2 = 0;
   goto __pyx_L0;
 
-  /* "wrapPlanet_layer.pyx":29
+  /* "wrapPlanet_layer.pyx":32
  *         return self.thisptr.setWave(npoints, rxsec, wavens, abund)
  * 
  *     def getFlux(self, wavens):             # <<<<<<<<<<<<<<
@@ -2053,7 +2129,7 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_14getFlux(struct __pyx_ob
   return __pyx_r;
 }
 
-/* "wrapPlanet_layer.pyx":32
+/* "wrapPlanet_layer.pyx":35
  *         return self.thisptr.getFlux(wavens)
  * 
  *     def transFlux(self, rs, wavens):             # <<<<<<<<<<<<<<
@@ -2061,8 +2137,8 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_14getFlux(struct __pyx_ob
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_17transFlux(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_17transFlux(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_19transFlux(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_19transFlux(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_rs = 0;
   PyObject *__pyx_v_wavens = 0;
   PyObject *__pyx_r = 0;
@@ -2091,11 +2167,11 @@ static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_17transFlux(PyObject *__p
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_wavens)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("transFlux", 1, 2, 2, 1); __PYX_ERR(1, 32, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("transFlux", 1, 2, 2, 1); __PYX_ERR(1, 35, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "transFlux") < 0)) __PYX_ERR(1, 32, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "transFlux") < 0)) __PYX_ERR(1, 35, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 2) {
       goto __pyx_L5_argtuple_error;
@@ -2108,20 +2184,20 @@ static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_17transFlux(PyObject *__p
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("transFlux", 1, 2, 2, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(1, 32, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("transFlux", 1, 2, 2, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(1, 35, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("wrapPlanet_layer.PyPlanet.transFlux", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_16transFlux(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), __pyx_v_rs, __pyx_v_wavens);
+  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_18transFlux(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), __pyx_v_rs, __pyx_v_wavens);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_16transFlux(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_rs, PyObject *__pyx_v_wavens) {
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_18transFlux(struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, PyObject *__pyx_v_rs, PyObject *__pyx_v_wavens) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   double __pyx_t_1;
@@ -2129,21 +2205,21 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_16transFlux(struct __pyx_
   PyObject *__pyx_t_3 = NULL;
   __Pyx_RefNannySetupContext("transFlux", 0);
 
-  /* "wrapPlanet_layer.pyx":33
+  /* "wrapPlanet_layer.pyx":36
  * 
  *     def transFlux(self, rs, wavens):
  *         return self.thisptr.transFlux(rs, wavens)             # <<<<<<<<<<<<<<
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_PyFloat_AsDouble(__pyx_v_rs); if (unlikely((__pyx_t_1 == (double)-1) && PyErr_Occurred())) __PYX_ERR(1, 33, __pyx_L1_error)
-  __pyx_t_2 = __pyx_convert_vector_from_py_double(__pyx_v_wavens); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 33, __pyx_L1_error)
-  __pyx_t_3 = __pyx_convert_vector_to_py_double(__pyx_v_self->thisptr->transFlux(__pyx_t_1, __pyx_t_2)); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 33, __pyx_L1_error)
+  __pyx_t_1 = __pyx_PyFloat_AsDouble(__pyx_v_rs); if (unlikely((__pyx_t_1 == (double)-1) && PyErr_Occurred())) __PYX_ERR(1, 36, __pyx_L1_error)
+  __pyx_t_2 = __pyx_convert_vector_from_py_double(__pyx_v_wavens); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 36, __pyx_L1_error)
+  __pyx_t_3 = __pyx_convert_vector_to_py_double(__pyx_v_self->thisptr->transFlux(__pyx_t_1, __pyx_t_2)); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 36, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __pyx_r = __pyx_t_3;
   __pyx_t_3 = 0;
   goto __pyx_L0;
 
-  /* "wrapPlanet_layer.pyx":32
+  /* "wrapPlanet_layer.pyx":35
  *         return self.thisptr.getFlux(wavens)
  * 
  *     def transFlux(self, rs, wavens):             # <<<<<<<<<<<<<<
@@ -2168,19 +2244,19 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_16transFlux(struct __pyx_
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_19__reduce_cython__(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused); /*proto*/
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_19__reduce_cython__(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused) {
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_21__reduce_cython__(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused); /*proto*/
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_21__reduce_cython__(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__reduce_cython__ (wrapper)", 0);
-  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_18__reduce_cython__(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self));
+  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_20__reduce_cython__(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_18__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self) {
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_20__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -2222,19 +2298,19 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_18__reduce_cython__(CYTHO
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_21__setstate_cython__(PyObject *__pyx_v_self, PyObject *__pyx_v___pyx_state); /*proto*/
-static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_21__setstate_cython__(PyObject *__pyx_v_self, PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_23__setstate_cython__(PyObject *__pyx_v_self, PyObject *__pyx_v___pyx_state); /*proto*/
+static PyObject *__pyx_pw_16wrapPlanet_layer_8PyPlanet_23__setstate_cython__(PyObject *__pyx_v_self, PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__setstate_cython__ (wrapper)", 0);
-  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_20__setstate_cython__(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), ((PyObject *)__pyx_v___pyx_state));
+  __pyx_r = __pyx_pf_16wrapPlanet_layer_8PyPlanet_22__setstate_cython__(((struct __pyx_obj_16wrapPlanet_layer_PyPlanet *)__pyx_v_self), ((PyObject *)__pyx_v___pyx_state));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_20__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_22__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_16wrapPlanet_layer_PyPlanet *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -2270,122 +2346,11 @@ static PyObject *__pyx_pf_16wrapPlanet_layer_8PyPlanet_20__setstate_cython__(CYT
 
 /* "vector.from_py":45
  * 
- * @cname("__pyx_convert_vector_from_py_double")
- * cdef vector[X] __pyx_convert_vector_from_py_double(object o) except *:             # <<<<<<<<<<<<<<
+ * @cname("__pyx_convert_vector_from_py_int")
+ * cdef vector[X] __pyx_convert_vector_from_py_int(object o) except *:             # <<<<<<<<<<<<<<
  *     cdef vector[X] v
  *     for item in o:
  */
-
-static std::vector<double>  __pyx_convert_vector_from_py_double(PyObject *__pyx_v_o) {
-  std::vector<double>  __pyx_v_v;
-  PyObject *__pyx_v_item = NULL;
-  std::vector<double>  __pyx_r;
-  __Pyx_RefNannyDeclarations
-  PyObject *__pyx_t_1 = NULL;
-  Py_ssize_t __pyx_t_2;
-  PyObject *(*__pyx_t_3)(PyObject *);
-  PyObject *__pyx_t_4 = NULL;
-  double __pyx_t_5;
-  __Pyx_RefNannySetupContext("__pyx_convert_vector_from_py_double", 0);
-
-  /* "vector.from_py":47
- * cdef vector[X] __pyx_convert_vector_from_py_double(object o) except *:
- *     cdef vector[X] v
- *     for item in o:             # <<<<<<<<<<<<<<
- *         v.push_back(<X>item)
- *     return v
- */
-  if (likely(PyList_CheckExact(__pyx_v_o)) || PyTuple_CheckExact(__pyx_v_o)) {
-    __pyx_t_1 = __pyx_v_o; __Pyx_INCREF(__pyx_t_1); __pyx_t_2 = 0;
-    __pyx_t_3 = NULL;
-  } else {
-    __pyx_t_2 = -1; __pyx_t_1 = PyObject_GetIter(__pyx_v_o); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 47, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_3 = Py_TYPE(__pyx_t_1)->tp_iternext; if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 47, __pyx_L1_error)
-  }
-  for (;;) {
-    if (likely(!__pyx_t_3)) {
-      if (likely(PyList_CheckExact(__pyx_t_1))) {
-        if (__pyx_t_2 >= PyList_GET_SIZE(__pyx_t_1)) break;
-        #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        __pyx_t_4 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_2); __Pyx_INCREF(__pyx_t_4); __pyx_t_2++; if (unlikely(0 < 0)) __PYX_ERR(0, 47, __pyx_L1_error)
-        #else
-        __pyx_t_4 = PySequence_ITEM(__pyx_t_1, __pyx_t_2); __pyx_t_2++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 47, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_4);
-        #endif
-      } else {
-        if (__pyx_t_2 >= PyTuple_GET_SIZE(__pyx_t_1)) break;
-        #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        __pyx_t_4 = PyTuple_GET_ITEM(__pyx_t_1, __pyx_t_2); __Pyx_INCREF(__pyx_t_4); __pyx_t_2++; if (unlikely(0 < 0)) __PYX_ERR(0, 47, __pyx_L1_error)
-        #else
-        __pyx_t_4 = PySequence_ITEM(__pyx_t_1, __pyx_t_2); __pyx_t_2++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 47, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_4);
-        #endif
-      }
-    } else {
-      __pyx_t_4 = __pyx_t_3(__pyx_t_1);
-      if (unlikely(!__pyx_t_4)) {
-        PyObject* exc_type = PyErr_Occurred();
-        if (exc_type) {
-          if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();
-          else __PYX_ERR(0, 47, __pyx_L1_error)
-        }
-        break;
-      }
-      __Pyx_GOTREF(__pyx_t_4);
-    }
-    __Pyx_XDECREF_SET(__pyx_v_item, __pyx_t_4);
-    __pyx_t_4 = 0;
-
-    /* "vector.from_py":48
- *     cdef vector[X] v
- *     for item in o:
- *         v.push_back(<X>item)             # <<<<<<<<<<<<<<
- *     return v
- * 
- */
-    __pyx_t_5 = __pyx_PyFloat_AsDouble(__pyx_v_item); if (unlikely((__pyx_t_5 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 48, __pyx_L1_error)
-    __pyx_v_v.push_back(((double)__pyx_t_5));
-
-    /* "vector.from_py":47
- * cdef vector[X] __pyx_convert_vector_from_py_double(object o) except *:
- *     cdef vector[X] v
- *     for item in o:             # <<<<<<<<<<<<<<
- *         v.push_back(<X>item)
- *     return v
- */
-  }
-  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-
-  /* "vector.from_py":49
- *     for item in o:
- *         v.push_back(<X>item)
- *     return v             # <<<<<<<<<<<<<<
- * 
- * 
- */
-  __pyx_r = __pyx_v_v;
-  goto __pyx_L0;
-
-  /* "vector.from_py":45
- * 
- * @cname("__pyx_convert_vector_from_py_double")
- * cdef vector[X] __pyx_convert_vector_from_py_double(object o) except *:             # <<<<<<<<<<<<<<
- *     cdef vector[X] v
- *     for item in o:
- */
-
-  /* function exit code */
-  __pyx_L1_error:;
-  __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_XDECREF(__pyx_t_4);
-  __Pyx_AddTraceback("vector.from_py.__pyx_convert_vector_from_py_double", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __Pyx_pretend_to_initialize(&__pyx_r);
-  __pyx_L0:;
-  __Pyx_XDECREF(__pyx_v_item);
-  __Pyx_RefNannyFinishContext();
-  return __pyx_r;
-}
 
 static std::vector<int>  __pyx_convert_vector_from_py_int(PyObject *__pyx_v_o) {
   std::vector<int>  __pyx_v_v;
@@ -2491,6 +2456,117 @@ static std::vector<int>  __pyx_convert_vector_from_py_int(PyObject *__pyx_v_o) {
   __Pyx_XDECREF(__pyx_t_1);
   __Pyx_XDECREF(__pyx_t_4);
   __Pyx_AddTraceback("vector.from_py.__pyx_convert_vector_from_py_int", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_pretend_to_initialize(&__pyx_r);
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_item);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static std::vector<double>  __pyx_convert_vector_from_py_double(PyObject *__pyx_v_o) {
+  std::vector<double>  __pyx_v_v;
+  PyObject *__pyx_v_item = NULL;
+  std::vector<double>  __pyx_r;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  Py_ssize_t __pyx_t_2;
+  PyObject *(*__pyx_t_3)(PyObject *);
+  PyObject *__pyx_t_4 = NULL;
+  double __pyx_t_5;
+  __Pyx_RefNannySetupContext("__pyx_convert_vector_from_py_double", 0);
+
+  /* "vector.from_py":47
+ * cdef vector[X] __pyx_convert_vector_from_py_double(object o) except *:
+ *     cdef vector[X] v
+ *     for item in o:             # <<<<<<<<<<<<<<
+ *         v.push_back(<X>item)
+ *     return v
+ */
+  if (likely(PyList_CheckExact(__pyx_v_o)) || PyTuple_CheckExact(__pyx_v_o)) {
+    __pyx_t_1 = __pyx_v_o; __Pyx_INCREF(__pyx_t_1); __pyx_t_2 = 0;
+    __pyx_t_3 = NULL;
+  } else {
+    __pyx_t_2 = -1; __pyx_t_1 = PyObject_GetIter(__pyx_v_o); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 47, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __pyx_t_3 = Py_TYPE(__pyx_t_1)->tp_iternext; if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 47, __pyx_L1_error)
+  }
+  for (;;) {
+    if (likely(!__pyx_t_3)) {
+      if (likely(PyList_CheckExact(__pyx_t_1))) {
+        if (__pyx_t_2 >= PyList_GET_SIZE(__pyx_t_1)) break;
+        #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+        __pyx_t_4 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_2); __Pyx_INCREF(__pyx_t_4); __pyx_t_2++; if (unlikely(0 < 0)) __PYX_ERR(0, 47, __pyx_L1_error)
+        #else
+        __pyx_t_4 = PySequence_ITEM(__pyx_t_1, __pyx_t_2); __pyx_t_2++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 47, __pyx_L1_error)
+        __Pyx_GOTREF(__pyx_t_4);
+        #endif
+      } else {
+        if (__pyx_t_2 >= PyTuple_GET_SIZE(__pyx_t_1)) break;
+        #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+        __pyx_t_4 = PyTuple_GET_ITEM(__pyx_t_1, __pyx_t_2); __Pyx_INCREF(__pyx_t_4); __pyx_t_2++; if (unlikely(0 < 0)) __PYX_ERR(0, 47, __pyx_L1_error)
+        #else
+        __pyx_t_4 = PySequence_ITEM(__pyx_t_1, __pyx_t_2); __pyx_t_2++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 47, __pyx_L1_error)
+        __Pyx_GOTREF(__pyx_t_4);
+        #endif
+      }
+    } else {
+      __pyx_t_4 = __pyx_t_3(__pyx_t_1);
+      if (unlikely(!__pyx_t_4)) {
+        PyObject* exc_type = PyErr_Occurred();
+        if (exc_type) {
+          if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();
+          else __PYX_ERR(0, 47, __pyx_L1_error)
+        }
+        break;
+      }
+      __Pyx_GOTREF(__pyx_t_4);
+    }
+    __Pyx_XDECREF_SET(__pyx_v_item, __pyx_t_4);
+    __pyx_t_4 = 0;
+
+    /* "vector.from_py":48
+ *     cdef vector[X] v
+ *     for item in o:
+ *         v.push_back(<X>item)             # <<<<<<<<<<<<<<
+ *     return v
+ * 
+ */
+    __pyx_t_5 = __pyx_PyFloat_AsDouble(__pyx_v_item); if (unlikely((__pyx_t_5 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 48, __pyx_L1_error)
+    __pyx_v_v.push_back(((double)__pyx_t_5));
+
+    /* "vector.from_py":47
+ * cdef vector[X] __pyx_convert_vector_from_py_double(object o) except *:
+ *     cdef vector[X] v
+ *     for item in o:             # <<<<<<<<<<<<<<
+ *         v.push_back(<X>item)
+ *     return v
+ */
+  }
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "vector.from_py":49
+ *     for item in o:
+ *         v.push_back(<X>item)
+ *     return v             # <<<<<<<<<<<<<<
+ * 
+ * 
+ */
+  __pyx_r = __pyx_v_v;
+  goto __pyx_L0;
+
+  /* "vector.from_py":45
+ * 
+ * @cname("__pyx_convert_vector_from_py_double")
+ * cdef vector[X] __pyx_convert_vector_from_py_double(object o) except *:             # <<<<<<<<<<<<<<
+ *     cdef vector[X] v
+ *     for item in o:
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_AddTraceback("vector.from_py.__pyx_convert_vector_from_py_double", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_pretend_to_initialize(&__pyx_r);
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_item);
@@ -2647,14 +2723,15 @@ static void __pyx_tp_dealloc_16wrapPlanet_layer_PyPlanet(PyObject *o) {
 
 static PyMethodDef __pyx_methods_16wrapPlanet_layer_PyPlanet[] = {
   {"MakePlanet", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16wrapPlanet_layer_8PyPlanet_5MakePlanet, METH_VARARGS|METH_KEYWORDS, 0},
-  {"set_Params", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16wrapPlanet_layer_8PyPlanet_7set_Params, METH_VARARGS|METH_KEYWORDS, 0},
-  {"get_Spectrum", (PyCFunction)__pyx_pw_16wrapPlanet_layer_8PyPlanet_9get_Spectrum, METH_O, 0},
-  {"readopac", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16wrapPlanet_layer_8PyPlanet_11readopac, METH_VARARGS|METH_KEYWORDS, 0},
-  {"setWave", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16wrapPlanet_layer_8PyPlanet_13setWave, METH_VARARGS|METH_KEYWORDS, 0},
-  {"getFlux", (PyCFunction)__pyx_pw_16wrapPlanet_layer_8PyPlanet_15getFlux, METH_O, 0},
-  {"transFlux", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16wrapPlanet_layer_8PyPlanet_17transFlux, METH_VARARGS|METH_KEYWORDS, 0},
-  {"__reduce_cython__", (PyCFunction)__pyx_pw_16wrapPlanet_layer_8PyPlanet_19__reduce_cython__, METH_NOARGS, 0},
-  {"__setstate_cython__", (PyCFunction)__pyx_pw_16wrapPlanet_layer_8PyPlanet_21__setstate_cython__, METH_O, 0},
+  {"get_Teff", (PyCFunction)__pyx_pw_16wrapPlanet_layer_8PyPlanet_7get_Teff, METH_NOARGS, 0},
+  {"set_Params", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16wrapPlanet_layer_8PyPlanet_9set_Params, METH_VARARGS|METH_KEYWORDS, 0},
+  {"get_Spectrum", (PyCFunction)__pyx_pw_16wrapPlanet_layer_8PyPlanet_11get_Spectrum, METH_O, 0},
+  {"readopac", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16wrapPlanet_layer_8PyPlanet_13readopac, METH_VARARGS|METH_KEYWORDS, 0},
+  {"setWave", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16wrapPlanet_layer_8PyPlanet_15setWave, METH_VARARGS|METH_KEYWORDS, 0},
+  {"getFlux", (PyCFunction)__pyx_pw_16wrapPlanet_layer_8PyPlanet_17getFlux, METH_O, 0},
+  {"transFlux", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16wrapPlanet_layer_8PyPlanet_19transFlux, METH_VARARGS|METH_KEYWORDS, 0},
+  {"__reduce_cython__", (PyCFunction)__pyx_pw_16wrapPlanet_layer_8PyPlanet_21__reduce_cython__, METH_NOARGS, 0},
+  {"__setstate_cython__", (PyCFunction)__pyx_pw_16wrapPlanet_layer_8PyPlanet_23__setstate_cython__, METH_O, 0},
   {0, 0, 0, 0}
 };
 
@@ -2769,11 +2846,10 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_TypeError, __pyx_k_TypeError, sizeof(__pyx_k_TypeError), 0, 0, 1, 1},
   {&__pyx_n_s_abund, __pyx_k_abund, sizeof(__pyx_k_abund), 0, 0, 1, 1},
   {&__pyx_n_s_cline_in_traceback, __pyx_k_cline_in_traceback, sizeof(__pyx_k_cline_in_traceback), 0, 0, 1, 1},
-  {&__pyx_n_s_cloudnum, __pyx_k_cloudnum, sizeof(__pyx_k_cloudnum), 0, 0, 1, 1},
   {&__pyx_n_s_getstate, __pyx_k_getstate, sizeof(__pyx_k_getstate), 0, 0, 1, 1},
-  {&__pyx_n_s_hazetype, __pyx_k_hazetype, sizeof(__pyx_k_hazetype), 0, 0, 1, 1},
+  {&__pyx_n_s_hires, __pyx_k_hires, sizeof(__pyx_k_hires), 0, 0, 1, 1},
+  {&__pyx_n_s_lores, __pyx_k_lores, sizeof(__pyx_k_lores), 0, 0, 1, 1},
   {&__pyx_n_s_main, __pyx_k_main, sizeof(__pyx_k_main), 0, 0, 1, 1},
-  {&__pyx_n_s_modenum, __pyx_k_modenum, sizeof(__pyx_k_modenum), 0, 0, 1, 1},
   {&__pyx_n_s_mollist, __pyx_k_mollist, sizeof(__pyx_k_mollist), 0, 0, 1, 1},
   {&__pyx_n_s_name, __pyx_k_name, sizeof(__pyx_k_name), 0, 0, 1, 1},
   {&__pyx_kp_s_no_default___reduce___due_to_non, __pyx_k_no_default___reduce___due_to_non, sizeof(__pyx_k_no_default___reduce___due_to_non), 0, 0, 1, 0},
@@ -2788,10 +2864,12 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_rxsec, __pyx_k_rxsec, sizeof(__pyx_k_rxsec), 0, 0, 1, 1},
   {&__pyx_n_s_setstate, __pyx_k_setstate, sizeof(__pyx_k_setstate), 0, 0, 1, 1},
   {&__pyx_n_s_setstate_cython, __pyx_k_setstate_cython, sizeof(__pyx_k_setstate_cython), 0, 0, 1, 1},
+  {&__pyx_n_s_switches, __pyx_k_switches, sizeof(__pyx_k_switches), 0, 0, 1, 1},
+  {&__pyx_n_s_table, __pyx_k_table, sizeof(__pyx_k_table), 0, 0, 1, 1},
   {&__pyx_n_s_test, __pyx_k_test, sizeof(__pyx_k_test), 0, 0, 1, 1},
   {&__pyx_n_s_tpprofile, __pyx_k_tpprofile, sizeof(__pyx_k_tpprofile), 0, 0, 1, 1},
   {&__pyx_n_s_wavens, __pyx_k_wavens, sizeof(__pyx_k_wavens), 0, 0, 1, 1},
-  {&__pyx_n_s_wrange, __pyx_k_wrange, sizeof(__pyx_k_wrange), 0, 0, 1, 1},
+  {&__pyx_n_s_wavenslo, __pyx_k_wavenslo, sizeof(__pyx_k_wavenslo), 0, 0, 1, 1},
   {0, 0, 0, 0, 0, 0, 0}
 };
 static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {

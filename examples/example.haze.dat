@@ -10,6 +10,7 @@ Pressure	-3.0	2.5
 Streams		1
 Prior		Uniform
 Output		samples
+Opacities	../Opacities
 Parameter   Initial   Mu    Sigma    Min     Max
 Basic
 RtoD2U	     -18.68   -18.8    0.2  -22.0   -16.0	    

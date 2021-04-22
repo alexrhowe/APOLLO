@@ -10,7 +10,7 @@
 
 using namespace cons;
 
-Atmosphere::Atmosphere(int hazenum, vector<double> hazeparams, string opacdir)
+Atmosphere::Atmosphere(int hazenum, vector<double> hazeparams, string hires, string opacdir)
 {
   haze = hazeparams;
   std::string hazeFile;
@@ -20,7 +20,7 @@ Atmosphere::Atmosphere(int hazenum, vector<double> hazeparams, string opacdir)
   printf("Atmosphere\n");
 
   if(hazenum != 0){
-    hazeFile = opacdir + "/" + hazelist[hazenum] + ".table.dat";
+    hazeFile = opacdir + "/" + hazelist[hazenum] + "." + hires + ".dat";
     
     // read in indices of refraction
     std::ifstream hFile(hazeFile.c_str());

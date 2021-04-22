@@ -31,7 +31,7 @@ class Atmosphere
 
  public:
   //Atmosphere(int metalint, double* mols, int hazeint, double* hazeparams);
-  Atmosphere(int hazenum, vector<double> hazeparams, string opacdir);
+  Atmosphere(int hazenum, vector<double> hazeparams, string hires, string opacdir);
   double qe;
   double qa;
   double qs;

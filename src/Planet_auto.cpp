@@ -8,20 +8,34 @@
 using namespace cons;
 
 // Constructor; includes all the variables that don't change between models
-Planet::Planet(int modenum, vector<double> waves, int cloudnum, int hazenum, int wrange, vector<int> mollist, string opacname)
+Planet::Planet(vector<int> switches, vector<double> waves, vector<double> waveslo, vector<int> mollist, string opacname, string hir, string lor)
 {
-  range = wrange;
-  npress = 18;
-  ntemp = 35;
-  nspec = mollist.size();
-  mode = modenum;
-  hazetype = hazenum;
-  cloudmod = cloudnum;
-  wavens = waves;
-  opacdir = opacname;
+  mode = switches[0];
+  cloudmod = switches[1];
+  hazetype = switches[2];
   
-  degrade = round(10000.*log(wavens[0]/wavens[1]));
+  nspec = mollist.size(); // Number of molecular species, not number of spectral points.
+  
+  wavens = waves;
+  wavenslo = waveslo;
+  opacdir = opacname;
+  hires = hir;
+  lores = lor;
+  
+  string dimfile = opacdir + "/h2o." + hires + ".dat";
+  ifstream dimin(dimfile.c_str());
+  if(!dimin) cout << "Opacity Files Not Found" << std::endl;
+  dimin >> npress >> pmin >> pmax >> ntemp >> tmin >> tmax >> nwave >> lmin >> lmax >> res;
+  dimin.close();
+  
+  pmin += 6.;
+  pmax += 6.;
+  wmin = 10000./lmin;
+  wmax = 10000./lmax;
+  
+  degrade = round(res*log(wavens[0]/wavens[1]));
   ntable = ceil((double)nwave/degrade);
+  
   if(nspec==0){
     mastertable = vector<vector<vector<vector<double> > > >(npress,vector<vector<vector<double> > >(ntemp,vector<vector<double> >(ntable,vector<double>(1))));
   }
@@ -29,23 +43,24 @@ Planet::Planet(int modenum, vector<double> waves, int cloudnum, int hazenum, int
     mastertable = vector<vector<vector<vector<double> > > >(npress,vector<vector<vector<double> > >(ntemp,vector<vector<double> >(ntable,vector<double>(nspec))));
   }
 
-  if(range==0){
-    nwave = 21205;
-    lmin = 0.6;
-    lmax = 5.0;
-  }
-  if(range==1){
-    nwave = 17228;
-    lmin = 5.0;
-    lmax = 28.0;
-  }
-  res = (lmax-lmin)/nwave;
+  double temp;
+  dimfile = opacdir + "/h2o." + lores + ".dat";
+  ifstream dimin2(dimfile.c_str());
+  if(!dimin2) cout << "Opacity Files Not Found" << std::endl;
+  dimin2 >> temp >> temp >> temp >> temp >> temp >> temp >> nwavelo >> lminlo >> lmaxlo >> reslo;
+  dimin2.close();
 
-  rp = 1.0;
+  if(nspec==0){
+    lotable = vector<vector<vector<vector<double> > > >(npress,vector<vector<vector<double> > >(ntemp,vector<vector<double> >(nwavelo,vector<double>(1))));
+  }
+  else{
+    lotable = vector<vector<vector<vector<double> > > >(npress,vector<vector<vector<double> > >(ntemp,vector<vector<double> >(nwavelo,vector<double>(nspec))));
+  }
   
   vector<double> temphaze(4,0);
-  atmosphere = new Atmosphere(hazetype,temphaze,opacdir);
-  readopac(mollist, wavens, opacdir);
+  atmosphere = new Atmosphere(hazetype,temphaze,hires,opacdir);
+  readopac(mollist, wavens, "hires", opacdir);
+  readopac(mollist, wavenslo, "lores", opacdir);
 }
 // end constructor
 
@@ -62,6 +77,7 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
   minP = plparams[7];
   maxP = plparams[8];
   sma = plparams[9]*1.496e13;
+  
   tpprof = tpprofile;
   
   haze = vector<double>(4,0);
@@ -80,6 +96,7 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
   }
   
   mp = grav/G*rp*rp;
+  
   if(mode<=1) nlevel = 101;
   if(mode==2) nlevel = 131;
   tprof = vector<double>(nlevel);
@@ -88,7 +105,6 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
     taulist[i] = 0.001 * pow(10,10.*i/100.);
   }
   nlayer = nlevel-1;      // Layers between the T-P points.
-  
   getProfile(tpprof);
   
   // hmax changed to the 1 mubar level; can change this
@@ -100,100 +116,176 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
 }
 // end setParams
 
+double Planet::getTeff(){
+  vector<double> tdepthlo = getFluxOneStream(wavenslo,"lores");
+  double totflux;
+
+  for(int i=1; i<wavenslo.size(); i++){
+    totflux += tdepthlo[i]*(1./wavenslo[i]-1./wavenslo[i-1]);
+  }
+
+  // Compute Teff based on the Stefan-Boltzmann Law.
+  // For a perfect blackbody, at least 90% of the flux falls within 0.6-30 microns between 350 and 3500 K.
+  // And 99% of the flux falls within 0.6-30 microns between 800 and 2400 K.
+  double teff = pow(totflux/5.67e-5,0.25);
+  
+  return teff;
+}
+// end getTeff
+
 // Calls the appropriate method given the spectrum type
 vector<double> Planet::getSpectrum(int streams){
   vector<double> tdepth;
   if(mode<=1 && streams==2) tdepth = getFlux(wavens);
-  else if(mode<=1 && streams==1) tdepth = getFluxOneStream(wavens);
+  else if(mode<=1 && streams==1) tdepth = getFluxOneStream(wavens,"hires");
   else if(mode==2) tdepth = transFlux(rs,wavens);
   else printf("Error: invalid settings in getSpectrum.");
   return tdepth;
 }
 
 // Reads in the opacities tables
-void Planet::readopac(vector<int> mollist, vector<double> wavens, string opacdir){
+void Planet::readopac(vector<int> mollist, vector<double> wavens, string table, string opacdir){
   printf("Reading in cross sections.\n");
   string specfile;
 
-  string gaslist[14] = {"h2","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo"};
+  string gaslist[19] = {"h2","h2only","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"};
   
-  // Gray atmosphere for testing purposes.
-  if(nspec==0){
-    int x;
-    for(int j=0; j<npress; j++){
-      for(int k=0; k<ntemp; k++){
-	for(int l=0; l<nwave; l++){
-	  x = (int)(l/degrade);
-	  mastertable[j][k][x][0] = 6.629e-24;
-	}
-      }
-    }
-  }
-
-  else{
-    for(int i=0; i<nspec; i++){
-      int index = mollist[i];
-      int x;
-      double val;
-	
-      if(gaslist[index]=="h-"){
-	printf("%s\n",gaslist[index].c_str());
-	for(int j=0; j<npress; j++){
-	  for(int k=0; k<ntemp; k++){
-	    for(int l=0; l<nwave; l++){
-	      double wn = 10000./(lmin*exp(l/10000.));
-	      x = (int)(l/degrade);
-	      double tmid = 75.*pow(10,k/20.3);
-	      double bf = HminBoundFree(tmid, wavens[l]);
-	      double ff = HminFreeFree(tmid, wavens[l]);
-	      val = bf + ff;
-	      if(isnan(val) || isinf(val) || val < 1.e-50) val = 1.e-50;
-	      if(x<ntable) mastertable[j][k][x][i] += val/(double)degrade;
-	    }
-	  }
-	}
-      }
-      
-      else{
-	if(range==0){
-	  specfile = opacdir + "/" + gaslist[index] + "wide.dat";
-	}
-	if(range==1){
-	  specfile = opacdir + "/" + gaslist[index] + "mir.dat";
-	}
-	printf("%s\n",gaslist[index].c_str());
+  if(table=="hires"){
     
-	ifstream opacin(specfile.c_str());
-	if(!opacin) cout << "Opacity File Not Found" << std::endl;
-
-	for(int j=0; j<npress; j++){
-	  for(int k=0; k<ntemp; k++){
-	    for(int l=0; l<nwave; l++){
-	      x = (int)(l/degrade);
-	      opacin >> val;
-	      if(isnan(val) || isinf(val) || val < 1.e-50) val = 1.e-50;
-	      if(x<ntable) mastertable[j][k][x][i] += val/(double)degrade;
-	    }
+    // Gray atmosphere for testing purposes.
+    if(nspec==0){
+      int x;
+      for(int j=0; j<npress; j++){
+	for(int k=0; k<ntemp; k++){
+	  for(int l=0; l<nwave; l++){
+	    x = (int)(l/degrade);
+	    mastertable[j][k][x][0] = 6.629e-24;
 	  }
 	}
       }
-    }
-  }
+    } // end if(nspec==0)
+    
+    else{
+      for(int i=0; i<nspec; i++){
+	int index = mollist[i];
+	int x;
+	double val;
+	
+	if(gaslist[index]=="h-"){
+	  printf("%s\n",gaslist[index].c_str());
+	  for(int j=0; j<npress; j++){
+	    for(int k=0; k<ntemp; k++){
+	      for(int l=0; l<nwave; l++){
+		double wn = 10000./(lmin*exp(l/res));
+		x = (int)(l/degrade);
+		double tmid = tmin*pow(10,k/20.3);
+		double bf = HminBoundFree(tmid, wn);
+		double ff = HminFreeFree(tmid, wn);
+		val = bf + ff;
+		if(isnan(val) || isinf(val) || val < 1.e-50) val = 1.e-50;
+		if(x<ntable) mastertable[j][k][x][i] += val/(double)degrade;
+	      }
+	    }
+	  }
+	} // end if(gaslist[index]=="h-")
+	
+	else{
+	  specfile = opacdir + "/" + gaslist[index] + "." + hires + ".dat";
+	  printf("%s\n",specfile.c_str());
+	  
+	  ifstream opacin(specfile.c_str());
+	  if(!opacin) cout << "Opacity File Not Found" << std::endl;
+	  
+	  for(int j=0; j<npress; j++){
+	    for(int k=0; k<ntemp; k++){
+	      for(int l=0; l<nwave; l++){
+		x = (int)(l/degrade);
+		opacin >> val;
+		if(isnan(val) || isinf(val) || val < 1.e-50) val = 1.e-50;
+		if(x<ntable) mastertable[j][k][x][i] += val/(double)degrade;
+	      }
+	    }
+	  }
+	} // end else(gaslist)
+      } // end for
+    } // end else(nspec)
+  } // end if(table=="hires")
+  
+  if(table=="lores"){
+    
+    // Gray atmosphere for testing purposes.
+    if(nspec==0){
+      for(int j=0; j<npress; j++){
+	for(int k=0; k<ntemp; k++){
+	  for(int l=0; l<nwavelo; l++){
+	    lotable[j][k][l][0] = 6.629e-24;
+	  }
+	}
+      }
+    } // end if(nspec==0)
+    
+    else{
+      for(int i=0; i<nspec; i++){
+	int index = mollist[i];
+	double val;
+	
+	if(gaslist[index]=="h-"){
+	  printf("%s\n",gaslist[index].c_str());
+	  for(int j=0; j<npress; j++){
+	    for(int k=0; k<ntemp; k++){
+	      for(int l=0; l<nwavelo; l++){
+		double wn = 10000./(lmin*exp(l/reslo));
+		double tmid = tmin*pow(10,k/20.3);
+		double bf = HminBoundFree(tmid, wn);
+		double ff = HminFreeFree(tmid, wn);
+		val = bf + ff;
+		if(isnan(val) || isinf(val) || val < 1.e-50) val = 1.e-50;
+		lotable[j][k][l][i] = val;
+	      }
+	    }
+	  }
+	} // end if(gaslist[index]=="h-")
+	
+	else{
+	  specfile = opacdir + "/" + gaslist[index] + "." + lores + ".dat";
+	  printf("%s\n",specfile.c_str());
+	  
+	  ifstream opacin(specfile.c_str());
+	  if(!opacin) cout << "Opacity File Not Found" << std::endl;
+	  
+	  for(int j=0; j<npress; j++){
+	    for(int k=0; k<ntemp; k++){
+	      for(int l=0; l<nwavelo; l++){
+		opacin >> val;
+		if(isnan(val) || isinf(val) || val < 1.e-50) val = 1.e-50;
+		lotable[j][k][l][i] = val;
+	      }
+	    }
+	  }
+	} // end else(gaslist)
+      } // end for
+    } // end else(nspec)
+  } // end if(table=="lores")
   
   printf("Finished reading cross sections.\n");
   return;
 }
+// end readopac
 
 // Calls the methods to create the optical depth tables for this atmosphere
-void Planet::setWave(int npoints, double rxsec, vector<double> wavens, vector<double> abund){
-
+void Planet::setWave(int npoints, double rxsec, vector<double> wavelist, vector<double> abund)
+{
   for(int i=1; i<nspec; i++){
     abund[i] = pow(10,abund[i]);
   }
-  getOpacProf(rxsec, wavens, abund);
-  if(mode<=1) getTauProf(wavens);
+  
+  getOpacProf(rxsec, wavens, abund, "hires");
+  if(mode<=1) getTauProf(wavens, "hires");
   if(mode==2) transTauProf(wavens);
+  getOpacProf(rxsec, wavenslo, abund, "lores");
+  getTauProf(wavenslo,"lores");
 }
+// end setWave
 
 // Retrieves the pressure at a given altitude
 double Planet::getP(double height)
@@ -509,9 +601,10 @@ vector<double> Planet::getFlux(vector<double> wavens)
   
   return totalflux;
 }
+// end getFlux
 
 // computes the total spectral radiance of the planet in frequency space
-vector<double> Planet::getFluxOneStream(vector<double> wavens)
+vector<double> Planet::getFluxOneStream(vector<double> wavens, string table)
 {
   // 8 Gauss points
   vector<double> gaussPoints(8,0);
@@ -541,7 +634,7 @@ vector<double> Planet::getFluxOneStream(vector<double> wavens)
   vector<double> fracflux(wavens.size(),0);
   
   for(int j=0; j<8; j++){
-    fracflux = getFluxes(wavens,gaussPoints[j],gaussWeights[j]);
+    fracflux = getFluxes(wavens,gaussPoints[j],gaussWeights[j],table);
     for(int i=0; i<wavens.size(); i++){
       totalflux[i] += 2.*pi*fracflux[i]*gaussWeights[j]*pi/2.; // erg/s/cm^2/Hz
       // extra factor of pi/2 from the mu substitution
@@ -549,62 +642,120 @@ vector<double> Planet::getFluxOneStream(vector<double> wavens)
   }
   return totalflux;
 }
+// end getFluxOneStream
 
 // computes the spectral radiance of the planet emitted at a given angle
-vector<double> Planet::getFluxes(vector<double> wavens, double cosmu, double delMu)
+vector<double> Planet::getFluxes(vector<double> wavens, double cosmu, double delMu, string table)
 {
-  vector<double> fluxes(wavens.size(),0);
-  double sinmu = sqrt(1.-cosmu*cosmu);
-  
-  for(int i=0; i<wavens.size(); i++){
-    double freq = wavens[i] * c;
-    double wavelength = 1./wavens[i];
-    double taucolumn = tauprof[i][nlayer-1];
+  if(table=="hires"){
+    vector<double> fluxes(wavens.size(),0);
+    double sinmu = sqrt(1.-cosmu*cosmu);
     
-    for(int j=nlayer-1; j>=0; j--){
-      // Entire layer below cloud deck
-      if(hprof[j]<hmin){
-	fluxes[i] += 0.;
-      }
+    for(int i=0; i<wavens.size(); i++){
+      double freq = wavens[i] * c;
+      double wavelength = 1./wavens[i];
+      double taucolumn = tauprof[i][nlayer-1];
       
-      // Entire layer above cloud deck
-      else if(hprof[j+1]>=hmin){
-	double tmid = 0.5*(tprof[j+1] + tprof[j]);
-	double freq = wavens[i] * c;
-	double wavelength = 1./wavens[i];
-	double I0 = blackbodyL(tmid,wavelength);             // erg/s/sr/cm^2/Hz
-	double dflux = I0 * (1.-exp(-taulayer[i][j]/cosmu)); // source function
-	if(j>0) dflux *= exp(-tauprof[i][j-1]/cosmu);        // absorption above layer
-	dflux *= sinmu;                                      // multiply by area
-	fluxes[i] += dflux;
-      }
-      
-      // Layer overlaps cloud deck boundary
-      else{
-	double fvisible = (hprof[j]-hmin)/(hprof[j]-hprof[j+1]);
-	double tcloud = fvisible*tprof[j+1] + (1.-fvisible)*tprof[j];
-	double tmid = 0.5*fvisible*tprof[j+1] + (1.-0.5*fvisible)*tprof[j];
-	double freq = wavens[i] * c;
-	double wavelength = 1./wavens[i];
+      for(int j=nlayer-1; j>=0; j--){
+	// Entire layer below cloud deck
+	if(hprof[j]<hmin){
+	  fluxes[i] += 0.;
+	}
 	
-	double I0 = blackbodyL(tcloud,wavelength);           // erg/s/sr/cm^2/Hz
-	double tauadjust = fvisible*taulayer[i][j];
-
-	double dflux = I0;
-	if(j>0) dflux *= exp(-(tauadjust+tauprof[i][j-1])/cosmu);
-	else dflux *= exp(-tauadjust/cosmu);
-
-	double I1 = blackbodyL(tmid,wavelength);
-	double dflux1 = I1 * (1.-exp(-tauadjust/cosmu));      // source function
-	if(j>0) dflux1 *= exp(-tauprof[i][j-1]/cosmu);        // absorption above layer
-	dflux += dflux1;
-	dflux *= sinmu;                                      // multiply by area
-	fluxes[i] += dflux;
-      }
-    }
-  }
-  return fluxes;
+	// Entire layer above cloud deck
+	else if(hprof[j+1]>=hmin){
+	  double tmid = 0.5*(tprof[j+1] + tprof[j]);
+	  double freq = wavens[i] * c;
+	  double wavelength = 1./wavens[i];
+	  double I0 = blackbodyL(tmid,wavelength);             // erg/s/sr/cm^2/Hz
+	  double dflux = I0 * (1.-exp(-taulayer[i][j]/cosmu)); // source function
+	  if(j>0) dflux *= exp(-tauprof[i][j-1]/cosmu);        // absorption above layer
+	  dflux *= sinmu;                                      // multiply by area
+	  fluxes[i] += dflux;
+	}
+	
+	// Layer overlaps cloud deck boundary
+	else{
+	  double fvisible = (hprof[j]-hmin)/(hprof[j]-hprof[j+1]);
+	  double tcloud = fvisible*tprof[j+1] + (1.-fvisible)*tprof[j];
+	  double tmid = 0.5*fvisible*tprof[j+1] + (1.-0.5*fvisible)*tprof[j];
+	  double freq = wavens[i] * c;
+	  double wavelength = 1./wavens[i];
+	  
+	  double I0 = blackbodyL(tcloud,wavelength);           // erg/s/sr/cm^2/Hz
+	  double tauadjust = fvisible*taulayer[i][j];
+	  
+	  double dflux = I0;
+	  if(j>0) dflux *= exp(-(tauadjust+tauprof[i][j-1])/cosmu);
+	  else dflux *= exp(-tauadjust/cosmu);
+	  
+	  double I1 = blackbodyL(tmid,wavelength);
+	  double dflux1 = I1 * (1.-exp(-tauadjust/cosmu));      // source function
+	  if(j>0) dflux1 *= exp(-tauprof[i][j-1]/cosmu);        // absorption above layer
+	  dflux += dflux1;
+	  dflux *= sinmu;                                      // multiply by area
+	  fluxes[i] += dflux;
+	}
+      } // end for(j)
+    } // end for(i)
+    return fluxes;
+  } // end if(table=="hires")
+  
+  if(table=="lores"){
+    vector<double> fluxes(wavenslo.size(),0);
+    double sinmu = sqrt(1.-cosmu*cosmu);
+    
+    for(int i=0; i<wavenslo.size(); i++){
+      double freq = wavenslo[i] * c;
+      double wavelength = 1./wavenslo[i];
+      double taucolumn = tauproflo[i][nlayer-1];
+      
+      for(int j=nlayer-1; j>=0; j--){
+	// Entire layer below cloud deck
+	if(hprof[j]<hmin){
+	  fluxes[i] += 0.;
+	}
+	
+	// Entire layer above cloud deck
+	else if(hprof[j+1]>=hmin){
+	  double tmid = 0.5*(tprof[j+1] + tprof[j]);
+	  double freq = wavenslo[i] * c;
+	  double wavelength = 1./wavenslo[i];
+	  double I0 = blackbodyL(tmid,wavelength);             // erg/s/sr/cm^2/Hz
+	  double dflux = I0 * (1.-exp(-taulayerlo[i][j]/cosmu)); // source function
+	  if(j>0) dflux *= exp(-tauproflo[i][j-1]/cosmu);        // absorption above layer
+	  dflux *= sinmu;                                      // multiply by area
+	  fluxes[i] += dflux;
+	}
+	
+	// Layer overlaps cloud deck boundary
+	else{
+	  double fvisible = (hprof[j]-hmin)/(hprof[j]-hprof[j+1]);
+	  double tcloud = fvisible*tprof[j+1] + (1.-fvisible)*tprof[j];
+	  double tmid = 0.5*fvisible*tprof[j+1] + (1.-0.5*fvisible)*tprof[j];
+	  double freq = wavenslo[i] * c;
+	  double wavelength = 1./wavenslo[i];
+	  
+	  double I0 = blackbodyL(tcloud,wavelength);           // erg/s/sr/cm^2/Hz
+	  double tauadjust = fvisible*taulayerlo[i][j];
+	  
+	  double dflux = I0;
+	  if(j>0) dflux *= exp(-(tauadjust+tauproflo[i][j-1])/cosmu);
+	  else dflux *= exp(-tauadjust/cosmu);
+	  
+	  double I1 = blackbodyL(tmid,wavelength);
+	  double dflux1 = I1 * (1.-exp(-tauadjust/cosmu));      // source function
+	  if(j>0) dflux1 *= exp(-tauproflo[i][j-1]/cosmu);        // absorption above layer
+	  dflux += dflux1;
+	  dflux *= sinmu;                                      // multiply by area
+	  fluxes[i] += dflux;
+	}
+      } // end for(j)
+    } // end for(i)
+    return fluxes;
+  } // end if(table=="lores")
 }
+// end getFluxes
 
 // computes the flux ratio received at each wavelength IN TRANSIT
 vector<double> Planet::transFlux(double rs, vector<double> wavens)
@@ -647,6 +798,7 @@ vector<double> Planet::transFlux(double rs, vector<double> wavens)
   }
   return fluxes;
 }
+// end transFlux
 
 // Computes a 101-layer T-P profile from the input profile
 void Planet::getProfile(vector<double> tpprofile)
@@ -708,74 +860,148 @@ void Planet::getProfile(vector<double> tpprofile)
 // Length of tauprof is 1 less than tprof
 // because it computes the optical depth between T-P points.
 // Index 0 is at the top of the atmosphere.
-void Planet::getTauProf(vector<double> wavens){
-  tauprof = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
-  taulayer = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
-  w0 = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
-  double hazedepth = 0.0;
-  for(int i=0; i<wavens.size(); i++){
-    double wavel = 10000./wavens[i];
+void Planet::getTauProf(vector<double> wavens, string table)
+{
+  if(table=="hires"){
+    tauprof = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
+    taulayer = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
+    w0 = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
     
-    for(int j=0; j<nlayer; j++){
-      double dl = (hprof[j]-hprof[j+1]);
-      double opac = opacprof[i][j];
-      double pmid = sqrt(prprof[j]*prprof[j+1]);
-      double tmid = 0.5*(tprof[j]+tprof[j+1]);
+    double hazedepth = 0.0;
+    for(int i=0; i<wavens.size(); i++){
+      double wavel = 10000./wavens[i];
       
-      double dtau = opac*pmid/k/tmid;
-      if(j>0) tauprof[i][j] = tauprof[i][j-1] + dtau * dl;
-      taulayer[i][j] = dtau * dl;
-      
-      double dlc = 0.; // thickness of cloud inside the layer
-      double hazeabund = 0.;
-      
-      if(hazetype!=0){
-	double hazexsec = atmosphere->getXsec(wavel,haze[1]);
-
-	// Slab cloud model
-	if(cloudmod==2){
-	  hazedepth = hazexsec * haze[0];
-	  // layer is strictly inside the cloud
-	  if(prprof[j] >= haze[2] && prprof[j+1] <= haze[3]){
+      for(int j=0; j<nlayer; j++){
+	double dl = (hprof[j]-hprof[j+1]);
+	double opac = opacprof[i][j];
+	double pmid = sqrt(prprof[j]*prprof[j+1]);
+	double tmid = 0.5*(tprof[j]+tprof[j+1]);
+	
+	double dtau = opac*pmid/k/tmid;
+	if(j>0) tauprof[i][j] = tauprof[i][j-1] + dtau * dl;
+	taulayer[i][j] = dtau * dl;
+	
+	double dlc = 0.; // thickness of cloud inside the layer
+	double hazeabund = 0.;
+	
+	if(hazetype!=0 && cloudmod>1){
+	  double hazexsec = atmosphere->getXsec(wavel,haze[1]);
+	  // Slab cloud model
+	  if(cloudmod==2){
+	    hazedepth = hazexsec * haze[0];
+	    // layer is strictly inside the cloud
+	    if(prprof[j] >= haze[2] && prprof[j+1] <= haze[3]){
+	      dlc = dl;
+	    }
+	    // layer overlaps bottom of cloud
+	    else if(prprof[j] >= haze[2] && prprof[j] <= haze[3]){
+	      dlc = dl * (log10(haze[3]/prprof[j]) / log10(haze[3]/haze[2]));
+	    }
+	    // layer overlaps top of cloud
+	    else if(prprof[j+1] >= haze[2] && prprof[j+1] <= haze[3]){
+	      dlc = dl * (log10(prprof[j+1]/haze[2]) / log10(haze[3]/haze[2]));
+	    }
+	    // layer contains entire cloud
+	    else if(prprof[j] <= haze[2] && prprof[j+1] >= haze[3]){
+	      dlc = dl * (log10(prprof[j+1]/haze[2]) / log10(haze[3]/haze[2]));
+	    }
+	  }
+	  
+	  // Gaussian cloud model, all layers are nominally inside the cloud
+	  if(cloudmod==3){
+	    hazeabund = haze[0]*gauss(log10(prprof[j]),haze[2],haze[3]);
+	    hazedepth = hazexsec * hazeabund;
 	    dlc = dl;
 	  }
-	  // layer overlaps bottom of cloud
-	  else if(prprof[j] >= haze[2] && prprof[j] <= haze[3]){
-	    dlc = dl * (log10(haze[3]/prprof[j]) / log10(haze[3]/haze[2]));
-	  }
-	  // layer overlaps top of cloud
-	  else if(prprof[j+1] >= haze[2] && prprof[j+1] <= haze[3]){
-	    dlc = dl * (log10(prprof[j+1]/haze[2]) / log10(haze[3]/haze[2]));
-	  }
-	  // layer contains entire cloud
-	  else if(prprof[j] <= haze[2] && prprof[j+1] >= haze[3]){
-	    dlc = dl * (log10(prprof[j+1]/haze[2]) / log10(haze[3]/haze[2]));
-	  }
+	  
+	} // end if(hazetype!=0)
+	else hazedepth = 0.;
+	
+	if(j==0){
+	  tauprof[i][j] = 0.;
 	}
-	
-	// Gaussian cloud model, all layers are nominally inside the cloud
-	if(cloudmod==3){
-	  hazeabund = haze[0]*gauss(log10(prprof[j]),haze[2],haze[3]);
-	  hazedepth = hazexsec * hazeabund;
-	  dlc = dl;
+	else{
+	  tauprof[i][j] += hazedepth * dlc;
 	}
+	taulayer[i][j] += hazedepth * dlc;
+	w0[i][j] = scatable[i][j]*pmid/k/tmid*0.999999/(dtau+hazedepth);
+	// w0 is layer single scattering albedo with layer 0 on top
+	// ratio of scattering to total opacity
+      } // end for(i)
+    } // end for(j)
+  } // end if(table=="hires")
+  
+  if(table=="lores"){
+    tauproflo = vector<vector<double> >(wavenslo.size(),vector<double>(nlayer,0));
+    taulayerlo = vector<vector<double> >(wavenslo.size(),vector<double>(nlayer,0));
+    w0lo = vector<vector<double> >(wavenslo.size(),vector<double>(nlayer,0));
+    
+    double hazedepth = 0.0;
+    for(int i=0; i<wavenslo.size(); i++){
+      double wavel = 10000./wavenslo[i];
+      
+      for(int j=0; j<nlayer; j++){
+	double dl = (hprof[j]-hprof[j+1]);
+	double opac = opacproflo[i][j];
+	double pmid = sqrt(prprof[j]*prprof[j+1]);
+	double tmid = 0.5*(tprof[j]+tprof[j+1]);
 	
-      } // end if(hazetype!=0)
-      else hazedepth = 0.;
+	double dtau = opac*pmid/k/tmid;
+	if(j>0) tauproflo[i][j] = tauproflo[i][j-1] + dtau * dl;
+	taulayerlo[i][j] = dtau * dl;
 	
-      if(j==0){
-	tauprof[i][j] = 0.;
-      }
-      else{
-	tauprof[i][j] += hazedepth * dlc;
-      }
-      taulayer[i][j] += hazedepth * dlc;
-      w0[i][j] = scatable[i][j]*pmid/k/tmid*0.999999/(dtau+hazedepth);
-      // w0 is layer single scattering albedo with layer 0 on top
-      // ratio of scattering to total opacity
-    }
-  }
+	double dlc = 0.; // thickness of cloud inside the layer
+	double hazeabund = 0.;
+	
+	if(hazetype!=0 && cloudmod>1){
+	  double hazexsec = atmosphere->getXsec(wavel,haze[1]);
+	  // Slab cloud model
+	  if(cloudmod==2){
+	    hazedepth = hazexsec * haze[0];
+	    // layer is strictly inside the cloud
+	    if(prprof[j] >= haze[2] && prprof[j+1] <= haze[3]){
+	      dlc = dl;
+	    }
+	    // layer overlaps bottom of cloud
+	    else if(prprof[j] >= haze[2] && prprof[j] <= haze[3]){
+	      dlc = dl * (log10(haze[3]/prprof[j]) / log10(haze[3]/haze[2]));
+	    }
+	    // layer overlaps top of cloud
+	    else if(prprof[j+1] >= haze[2] && prprof[j+1] <= haze[3]){
+	      dlc = dl * (log10(prprof[j+1]/haze[2]) / log10(haze[3]/haze[2]));
+	    }
+	    // layer contains entire cloud
+	    else if(prprof[j] <= haze[2] && prprof[j+1] >= haze[3]){
+	      dlc = dl * (log10(prprof[j+1]/haze[2]) / log10(haze[3]/haze[2]));
+	    }
+	  }
+	  
+	  // Gaussian cloud model, all layers are nominally inside the cloud
+	  if(cloudmod==3){
+	    hazeabund = haze[0]*gauss(log10(prprof[j]),haze[2],haze[3]);
+	    hazedepth = hazexsec * hazeabund;
+	    dlc = dl;
+	  }
+	  
+	} // end if(hazetype!=0)
+	else hazedepth = 0.;
+	
+	if(j==0){
+	  tauproflo[i][j] = 0.;
+	}
+	else{
+	  tauproflo[i][j] += hazedepth * dlc;
+	}
+	taulayerlo[i][j] += hazedepth * dlc;
+	w0lo[i][j] = scatablelo[i][j]*pmid/k/tmid*0.999999/(dtau+hazedepth);
+	// w0 is layer single scattering albedo with layer 0 on top
+	// ratio of scattering to total opacity
+	
+      } // end for(i)
+    } // end for(j)
+  } // end if(table=="lores")
 }
+// end getTauProf
 
 // Computes the optical depth table IN TRANSIT from the opacity table
 void Planet::transTauProf(vector<double> wavens){
@@ -822,7 +1048,7 @@ void Planet::transTauProf(vector<double> wavens){
 	    // layer contains entire cloud
 	    else if(prprof[j] <= haze[2] && prprof[j+1] >= haze[3]){
 	      dlc = dl * (log10(prprof[j+1]/haze[2]) / log10(haze[3]/haze[2]));
-	    }	    
+	    }
 	  }
 	
 	  // Gaussian cloud model, all layers are nominally inside the cloud
@@ -841,69 +1067,61 @@ void Planet::transTauProf(vector<double> wavens){
     }
   }
 }
+// end transTauProf
 
 // Computes the opacity table for the computed T-P profile from the input opacities.
 // This is also 1 shorter than the T-P profile.
-void Planet::getOpacProf(double rxsec, vector<double> wavens, vector<double> abund){
-  getSca(rxsec,wavens);
-  opacprof = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
-  int degrade = round(10000.*log(wavens[0]/wavens[1]));
+void Planet::getOpacProf(double rxsec, vector<double> wavelist, vector<double> abund, string table){
+  getSca(rxsec,wavelist,table);
+  
+  if(table=="hires") opacprof = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
+  if(table=="lores") opacproflo = vector<vector<double> >(wavenslo.size(),vector<double>(nlayer,0));
+  
   int nmol = nspec;
   if(nmol==0) nmol = 1;
   
-  double wmin = 10000./(lmin*exp(nwave/10000.));
-  double wmax = 10000./lmin;
-  int numwave = wavens.size();
-  double pmin = 0.0;            // original opacity files in mbar
-  double pmax = 8.5;            // converted to cgs here
-  int numpr   = 18;
-  double tmin = log10(75.);
-  double tmax = log10(75.)+34./20.3;
-  int numtemp = 35;
-  
-  double wval = log(10000./wavens[0]/lmin)*10000./degrade;
+  double wval = log(10000./wavelist[0]/lmin)*res/degrade;
   int wstart = (int)wval;
-
+  
   // interpolation variables
   double opr1, opr2, opac;
   vector<double> xsec(4,0);
 
   // Compute the indexes for interpolation
-  vector<double> logtemp(numtemp,0);
-  for(int n=0; n<numtemp; n++){
-    logtemp[n] = log10(75.*pow(10,n/20.3));
+  vector<double> logtemp(ntemp,0);
+  for(int n=0; n<ntemp; n++){
+    logtemp[n] = log10(tmin*pow(10,n/20.3));
   }
-  vector<double> logpr(numpr,0);
-  for(int n=0; n<numpr; n++){
+  vector<double> logpr(npress,0);
+  for(int n=0; n<npress; n++){
     logpr[n] = n*0.5;
   }
-  
   // loop over wavelengths
-  for(int m=0; m<numwave; m++){
+  for(int m=0; m<wavelist.size(); m++){
     // loop over T-P profile
     for(int j=0; j<nlayer; j++){
       double tl = log10(0.5*(tprof[j]+tprof[j+1]));
-      double deltat = (tl-tmin)/(tmax-tmin)*(numtemp-1.);
+      double deltat = (tl-tmin)/(tmax-tmin)*(ntemp-1.);
       int jt = (int)deltat;
       double dti = (tl-logtemp[jt])/(logtemp[jt+1]-logtemp[jt]);
       if(jt<0){
 	jt=0.;
 	dti=0.;
       }
-      if(jt>numtemp-2){
-	jt=numtemp-2;
+      if(jt>ntemp-2){
+	jt=ntemp-2;
 	dti=0.999999;
       }
       double pl = 0.5*(log10(prprof[j]*prprof[j+1]));
-      double deltap = (pl-pmin)/(pmax-pmin)*(numpr-1.);
+      double deltap = (pl-pmin)/(pmax-pmin)*(npress-1.);
       int jp = (int)deltap;
       double dpi = (pl-logpr[jp])/(logpr[jp+1]-logpr[jp]);
       if(jp<0){
 	jp=0.;
 	dpi=0.;
       }
-      if(jp>numpr-2){
-	jp=numpr-2;
+      if(jp>npress-2){
+	jp=npress-2;
 	dpi=0.999999;
       }
 
@@ -923,7 +1141,8 @@ void Planet::getOpacProf(double rxsec, vector<double> wavens, vector<double> abu
       opr2 = xsec[1] + dpi*(xsec[3]-xsec[1]);
       opac = opr1 + dti*(opr2-opr1);
 
-      opacprof[m][j] = opac + scatable[m][j];
+      if(table=="hires") opacprof[m][j] = opac + scatable[m][j];
+      if(table=="lores") opacproflo[m][j] = opac + scatablelo[m][j];
     }
   }
   return;
@@ -931,12 +1150,17 @@ void Planet::getOpacProf(double rxsec, vector<double> wavens, vector<double> abu
 // end getOpacProf
 
 // Computes the scattering opacity table
-void Planet::getSca(double rxsec, vector<double> wavens){
-  scatable = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
-  for(int m=0; m<wavens.size(); m++){
+void Planet::getSca(double rxsec, vector<double> wavelist, string table)
+{
+  if(table=="hires") scatable = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
+  if(table=="lores") scatablelo = vector<vector<double> >(wavenslo.size(),vector<double>(nlayer,0));
+  
+  for(int m=0; m<wavelist.size(); m++){
     for(int j=0; j<nlayer; j++){
-      double nu = c*wavens[m];  
-      scatable[m][j] = rxsec * pow(nu/5.0872638e14,4.0);
+      double nu = c*wavelist[m];
+      
+      if(table=="hires") scatable[m][j] = rxsec * pow(nu/5.0872638e14,4.0);
+      if(table=="lores") scatablelo[m][j] = rxsec * pow(nu/5.0872638e14,4.0);
     }
   }
 }
@@ -966,6 +1190,7 @@ double Planet::HminBoundFree(double t, double waven){
     return 0.;
   }
 }
+// end HminBoundFree
 
 double Planet::HminFreeFree(double t, double waven){
 
@@ -1022,4 +1247,4 @@ double Planet::HminFreeFree(double t, double waven){
   sff_hm *= k*t;
   return sff_hm;		   
 }
-
+// end HminFreeFree

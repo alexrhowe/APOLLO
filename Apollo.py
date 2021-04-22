@@ -141,7 +141,7 @@ def GetScaOpac(gases,abunds):
 
 def GetMollist(gases):
     mollist = np.zeros(len(gases))
-    gaslist = ["h2","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo"]
+    gaslist = ["h2","h2only","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"]
     for i in range(0,len(gases)):
         if gases[i] in gaslist: mollist[i] = gaslist.index(gases[i])
         else: mollist[i] = 0
@@ -184,9 +184,8 @@ dec = 0.0
 datain = 'example.obs.dat' # Bundled example file
 databin = 1          # Factor to bin down the observations
 wavei = 10000./0.60  # Full NIR wavelength range
-wavef = 10000./4.99
+wavef = 10000./5.00
 degrade = 1          # Undegraded spectrum
-wrange = 0           # Default range: NIR
 nwalkers = 0         # Placeholder for later adjustment
 nsteps = 30000       # Tested minimum required number of steps
 minP = 0.0           # Pressure range to integrate over in cgs
@@ -208,6 +207,8 @@ short = False        # Switch to create short output file names
 polyfit = False      # Switch to normalize the spectrum to a polynomial fit
 norm = False         # Dummy variable is polyfit is false
 printfull = False    # Switch to print the full sample array instead of the last 10%
+hires = 'nir'        # Default set of opacity tables to compute the spectra
+lores = 'lores'      # Default low-resolution tables to compute Teff
 
 hazelist = ['None','H2SO4','Polyacetylene','Tholin','Corundum','Enstatite','Forsterite','Iron','KCl','Na2S','NH3Ice','Soot','H2OCirrus','H2OIce','ZnS']
 
@@ -254,7 +255,7 @@ while(True):
         if override: nwalkers = 2
     elif line[0]=='N_Steps':
         if len(line)>1: nsteps = (int)(line[1])
-        if override: nsteps = 10
+        if override: nsteps = 2
     elif line[0]=='Pressure':
         if len(line)>1: minP = (float)(line[1]) + 6.0 # Convert from bars to cgs
         if len(line)>2: maxP = (float)(line[2]) + 6.0
@@ -278,10 +279,15 @@ while(True):
             if line[3]=='Full': printfull = True
     elif line[0]=='Opacities':
         if len(line)>1: opacdir = line[1]
+    elif line[0]=='Tables':
+        if len(line)>1: hires = line[1]
+        if len(line)>2: lores = line[2]
         
 # End read in settings
 
-if override: parallel = False
+if override:
+    parallel = False
+    printfull = True
 if nwalkers==0: nwalkers = pllen*8           # Default number of walkers
 if nwalkers<2*pllen: nwalkers = pllen*2 + 2  # Minimum number of walkers
 if nwalkers%2==1: nwalkers = nwalkers + 1    # Number of walkers must be even
@@ -306,7 +312,7 @@ i=0
 state = -1
 pnames = []
 basic = []
-gases = ['h2']     # Default filler is hydrogen
+gases = []
 atm = []
 clouds = []
 end   = []
@@ -332,6 +338,10 @@ for j in range(0,len(lines)):
     elif str(lines[j]) == 'Gases\n':
         state = 1
         g1 = i
+        if len(lines[j].split())>1:
+            gases.append(lines[j].split()[1])
+        else:
+            gases.append('h2only')  # Filler gas is H2-only, may change
     elif str(lines[j].split()[0]) == 'Atm':
         state = 2
         a1 = i
@@ -505,30 +515,55 @@ if 'logf' in end:
     bounds[e1+pos,1] = np.log(max(frathigh**2) * bounds[e1+pos,1])
 
 obsmid = (obshi+obslo)/2.
+
 # Set wavelength range of computed spectrum just wider than the input spectrum.
 wavei = max(obshi) * 1.01
 wavef = min(obslo) * 0.99
-if wavei > 10000/5.00:
-    if wavei > 10000/0.60: wavei = 10000./0.60
-    if wavef < 10000/4.99: wavef = 10000./4.99
-    nwave = 21205
-    lmin = 0.6
-if wavei <= 10000/5.00:
-    wrange = 1
-    if wavef < 10000/27.99: wavef = 10000./27.99
-    nwave = 17228
-    lmin = 5.0
-    if 'Burrows_alk' in gases: gases.remove('Burrows_alk')
+
+if wavei > 10000/5.0 and wavef > 10000/5.0:
+    if wavei > 10000/0.6: wavei = 10000./0.6
+    hires = 'nir'
+elif wavei > 10000/5.0 and wavef < 10000/5.0:
+    if wavei > 10000/0.6: wavei = 10000./0.6
+    if wavef < 10000/30.0: wavef = 10000./30.0
+    if 'Lupu_alk' in gases: gases.remove('Lupu_alk') # Temporary fix until I get Lupu_alk working.
+    hires = 'wide'
+elif wavei < 10000/5.0 and wavef < 10000/5.0:
+    if wavef < 10000/30.0: wavef = 10000./30.0
+    hires = 'mir'
     if 'Lupu_alk' in gases: gases.remove('Lupu_alk')
     
 # End of read in observations
 
 # Set wavelength spectrum, full range, to be reduced to selected regions
+
+# Compute hires spectrum wavelengths
+opacfile = opacdir + '/h2o.' + hires + '.dat'
+fopac = open(opacfile,'r')
+opacshape = fopac.readline().split()
+fopac.close()
+nwave = (int)(opacshape[6])
+lmin = (float)(opacshape[7])
+resolv = (float)(opacshape[9])
+
 speclen = (int)(nwave/degrade)
 specwave2 = np.zeros(speclen)
 for i in range(0,speclen):
-    specwave2[i] = 10000./(lmin*np.exp(i*degrade/10000.))
+    specwave2[i] = 10000./(lmin*np.exp(i*degrade/resolv))
+    
+# Compute lores spectrum wavelengths
+opacfile = opacdir + '/h2o.' + lores + '.dat'
+fopac = open(opacfile,'r')
+opacshape = fopac.readline().split()
+fopac.close()
+nwavelo = (int)(opacshape[6])
+lminlo = (float)(opacshape[7])
+resolvlo = (float)(opacshape[9])
 
+specwavelo = np.zeros(nwavelo)
+for i in range(0,nwavelo):
+    specwavelo[i] = 10000./(lminlo*np.exp(i/resolvlo))
+    
 # Set up wavelength ranges and normalization
 imin = np.where(specwave2<np.max(obshi))[0]-1
 imax = np.where(specwave2<np.min(obslo))[0]+2
@@ -583,7 +618,7 @@ if polyfit:
         elennorm.append(len(obsmid))
 
     # This part finds the indices at the boundaries of the bands in the truncated spectrum
-    wstart = (int)(np.log(10000./specwave2[imin[0]]/lmin)*10000./degrade)
+    wstart = (int)(np.log(10000./specwave2[imin[0]]/lmin)*resolv/degrade)
     strunc = np.zeros(len(starts))
     etrunc = np.zeros(len(ends))
     
@@ -640,11 +675,12 @@ print 'Cloud model:',cloudmod
 mode = int(mode)
 cloudmod = int(cloudmod)
 hazetype = int(hazetype)
-    
+switches = [mode,cloudmod,hazetype]
+
 # Switch for testing without calling the C++ code.
 #sys.exit()
 
-planet.MakePlanet(mode,specwave,cloudmod,hazetype,wrange,mollist,opacdir)
+planet.MakePlanet(switches,specwave,specwavelo,mollist,opacdir,hires,lores)
 print 'Setup complete.'
 # End of setup
 
@@ -768,7 +804,7 @@ def lnlike(x,binshi,binslo,fluxrat,frathigh):
                     tplong[i] = f(maxP + (minP-maxP)*i/(float)(vres-1))
                     if(tplong[i]<75.): tplong[i]=75.
                     if(tplong[i]>4000.): tplong[i]=4000.
-                    
+
             # Compute spectrum
             planet.set_Params(params1,abund,tplong)
             specflux = planet.get_Spectrum(streams)
@@ -810,13 +846,14 @@ def lnlike(x,binshi,binslo,fluxrat,frathigh):
     
     if(np.isnan(likelihood) or np.isinf(likelihood)):
         print "Error: ",params
-        
+    
     return likelihood
 
 # End of likelihood function
 
 # Used to test the serial part of the code at the command line
-print 'Likelihood of input parameters: ',lnlike(guess,binshi,binslo,fluxrat,frathigh)
+print 'Likelihood of input parameters: {0:f}'.format(lnlike(guess,binshi,binslo,fluxrat,frathigh))
+#sys.exit()
 
 eps = 0.01
 for i in range(0,len(guess)):
@@ -829,7 +866,8 @@ def lnprior(x):
     priors = np.zeros(pllen)
     for i in range(0,pllen):
         if not bounds[i,0] <= params[i] <= bounds[i,1]:
-            print 'Out of Bound {0:d} {1} {2} {3}'.format(i,params[i],bounds[i,0],bounds[i,1])
+            if not e1 <= i < e2:
+                print 'Out of Bound {0:d} {1} {2} {3}'.format(i,params[i],bounds[i,0],bounds[i,1])
             return -np.inf
         if smooth and i==a2:
             priors[i] = invgamma.pdf(params[i],1,scale=5.e-5) # gamma with inverse gamma function prior, alpha=1, beta=5.e-5
@@ -882,14 +920,70 @@ print 'Prior probability of input parameters: ', lnprior(guess)
 # Probability function
 def lnprob(x,binshi,binslo,fluxrat,frathigh):
     lp = lnprior(x)
-    if not np.isfinite(lp):
-        return -np.inf
+    params = x
+
+    # Dummy variables in case they cannot be calculated.
+    mass = 0.
+    ctoo = 0.
+    fetoh = 0.
+    teff = 0.
     
+    # Compute mass
+    grav = 0.
+    if 'Log(g)' in basic:
+        pos = basic.index('Log(g)')
+        grav = 10**params[b1+pos]
+    if 'Rad' in basic:
+        pos = basic.index('Rad')
+        radius = 6.371e8*params[b1+pos]
+    elif 'RtoD' in basic:
+        pos = basic.index('RtoD')
+        radius = 10**params[b1+pos]*dist*4.838e9*6.371e8 # convert R/D to Earth radii
+    elif 'RtoD2U' in basic:
+        pos = basic.index('RtoD2U')
+        radius = np.sqrt(params[b1+pos])*6.371e8
+    else: radius = 11.2*6.371e8
+    mass = grav*radius*radius/6.67e-8/1.898e30
+
+    # Compute C/O and [Fe/H]
+    carbon = 0.
+    oxygen = 0.
+    metals = 0.
+    ccompounds = ['ch4','co','co2','hcn']
+    cmult = [1.,1.,1.,1.]
+    ocompounds = ['h2o','co','co2','tio','vo']
+    omult = [1.,1.,2.,1.,1.]
+    zcompounds = ['h2o','ch4','co','co2','nh3','h2s','Burrows_alk','Lupu_alk','crh','feh','tio','vo','hcn','n2','ph3']
+    zmult = [16.,12.,28.,44.,14., 32.,24.,24.,52.,56., 64.,67.,26.,28.,31.]
+
+    for i in range(0,len(ccompounds)):
+        if ccompounds[i] in gases:
+            j = gases.index(ccompounds[i])
+            carbon = carbon + cmult[i]*10**params[g1+j-1] # -1 because of hydrogen
+    for i in range(0,len(ocompounds)):
+        if ocompounds[i] in gases:
+            j = gases.index(ocompounds[i])
+            oxygen = oxygen + omult[i]*10**params[g1+j-1]
+    for i in range(0,len(zcompounds)):
+        if zcompounds[i] in gases:
+            j = gases.index(zcompounds[i])
+            metals = metals + zmult[i]*10**params[g1+j-1]
+
+    ctoo = carbon/oxygen
+    fetoh = np.log10(metals/0.0196)
+    
+    teff = planet.get_Teff()
+
+    # Check if any of the priors were out of bounds.
+    if not np.isfinite(lp):
+        return -np.inf, [mass,ctoo,fetoh,teff]
+
+    # Check if an error returned a non-result.
     prob = lp + lnlike(x,binshi,binslo,fluxrat,frathigh)
     if np.isnan(prob):
-        return -np.inf
+        return -np.inf, [mass,ctoo,fetoh,teff]
     
-    return prob
+    return prob, [mass,ctoo,fetoh,teff]
 
 pos1 = guess + 0.1*eps*np.random.randn(pllen)
 testprior = lnprior(pos1)
@@ -928,77 +1022,129 @@ if 'RtoD' in pnames:
     rtemp = pnames.index('RtoD')
     pnames[rtemp] = 'Rad'
 
-printfull=True
-
+# Start samples output file
 if printfull: foutname = outdir + outfile + 'full.dat'
 else: foutname = outdir + outfile + 'dat'
 fchain = open(foutname,'w')
-fchain.write('{0:d} {1:d} {2:d}\n'.format(nwalkers,nsteps,ndim+1))
+
+if printfull: fchain.write('{0:d} {1:d} {2:d}'.format(nwalkers,nsteps,ndim+4))
+else: fchain.write('{0:d} {1:d} {2:d}'.format(nwalkers,nsteps/10,ndim+4))
+if atmtype=='Layers': fchain.write(' {0:d} {1:f} {2:f}\n'.format(a2-a1,minP-6.,maxP-6.))
+else: fchain.write('\n')
+
 for i in range(0,len(pnames)):
     if i==rpos:
         fchain.write('Rad ')
     else:
         fchain.write('{0:s} '.format(pnames[i]))
-fchain.write('\n')
+fchain.write('Mass C/O [Fe/H] Teff\n')
 
 i = 0
 for sample in sampler.sample(pos, iterations=nsteps):
-    if i%100==0: print 'Step number {0:d}'.format(i)
+    if i%100==0 or printfull: print 'Step number {0:d}'.format(i+1)
     if printfull or i>=nsteps*0.9:
         for i2 in range(0,len(sample[0])):
             for i3 in range(0,len(sample[0][i2])):
                 if i3==rpos:
-                    fchain.write('{0:f} '.format(np.sqrt(sample[0][i2][i3])))
+                    fchain.write('{0:f} '.format(np.sqrt(sample[0][i2][i3])/11.2))
+                elif pnames[i3]=='Rad' or pnames[i3]=='RtoD':
+                    fchain.write('{0:f} '.format(sample[0][i2][i3]/11.2))                    
                 else:
                     fchain.write('{0:f} '.format(sample[0][i2][i3]))
+            for i3 in range(0,len(sample[3][i2])):
+                fchain.write('{0:f} '.format(sample[3][i2][i3]))   # sample[3] is the blob
             fchain.write('\n')
     i = i+1
-fchain.close()
+#fchain.close()
 
 if parallel: pool.close()
 
 xplot = np.linspace(1,nsteps,nsteps)
+first = int(0.9*len(sampler.chain[0]))
 
 print "Retrieval Complete"
 
 # Create waterfall plots of results
 
-first = int(0.9*len(sampler.chain[0]))
 gsamples = sampler.chain[:,first:,g1:g2]
 bsamples = sampler.chain[:,first:,b1:b2]
+tsamples = sampler.chain[:,first:,a1:a2]
+blobs = sampler.blobs
 
 gsamples2 = gsamples.reshape(((len(sampler.chain[0])-first)*len(sampler.chain),g2-g1),order='F')
 bsamples2 = bsamples.reshape(((len(sampler.chain[0])-first)*len(sampler.chain),b2-b1),order='F')
+tsamples2 = tsamples.reshape(((len(sampler.chain[0])-first)*len(sampler.chain),a2-a1),order='F')
+        
+basic2 = basic
+basic2.append('Mass')
+basic2.append('C/O')
+basic2.append('[Fe/H]')
+basic2.append('Teff')
+
+baselist = ['Rad','RtoD','RtoD2U','Log(g)','Cloud_Base','P_cl','Mass','C/O','[Fe/H]','Teff']
+bnamelist = ['Radius (R$_J$)','Radius (R$_J$)','Radius (R$_J$)','log(g)','Base Pressure (bar)','Base Pressure (bar)','Mass (M$_J$)','C/O','[Fe/H]','T$_{eff}$ (K)']
+gaslist = ['h2','h2only','he','h-','h2o','ch4','co','co2','nh3','h2s','Burrows_alk','Lupu_alk','crh','feh','tio','vo','hcn','n2','ph3']
+gnamelist = ['H$_2$+He','H$_2$','He','[H-]','[H$_2$O]','[CH$_4$]','[CO]','[CO$_2$]','[NH$_3$]','[H$_2$S]','[Na,K]','[Na,K]','[CrH]','[FeH]','[TiO]','[VO]','[HCN]','[N2]','[PH3]']
+bnames = []
+gnames = []
+
+for i in range(0,len(basic2)):
+    if basic2[i] in baselist:
+        j = baselist.index(basic2[i])
+        bnames.append(bnamelist[j])
+
+for i in range(0,len(pnames)):
+    if pnames[i] in gaslist:
+        j = gaslist.index(pnames[i])
+        gnames.append(gnamelist[j])
 
 rpos = -1
 if 'RtoD2U' in basic:
     rpos = basic.index('RtoD2U')
-    basic[rpos] = 'Rad'
+    basic2[rpos] = 'Rad'
 if 'RtoD' in basic:
-    rpos = basic.index('RtoD')
-    basic[rpos] = 'Rad'
+    rtemp = basic.index('RtoD')
+    basic2[rtemp] = 'Rad'
     
-bsamples3 = np.zeros((len(bsamples2),b2-b1+1))
+bsamples3 = np.zeros((len(bsamples2),b2-b1+4))
+lenbasic = len(bsamples2[0])
+
 for i in range(0,len(bsamples3)):
-    for j in range(0,len(bsamples2[0])):
+    for j in range(0,lenbasic):
         if j==rpos:
-            bsamples3[i,j] = np.sqrt(bsamples2[i,j])
+            bsamples3[i,j] = np.sqrt(bsamples2[i,j])/11.2
+        elif basic[j]=='Rad' or basic[j]=='RtoD':
+            bsamples3[i,j] = bsamples2[i,j]/11.2
         else:
             bsamples3[i,j] = bsamples2[i,j]
+    for j in range(0,len(blobs[0][0])):
+        bsamples3[i,lenbasic+j] = blobs[0][i][j]
 
-fig = corner.corner(gsamples2,labels=gases,plot_datapoints=False,labelsize=24)
+#bsamples4 = [x for x in bsamples3 if not np.isinf(x[-1])]
+igood = [i for i in range(0,len(bsamples3)) if not np.isinf(bsamples3[i,-1])]
+gsamples3 = gsamples2[igood]
+bsamples4 = bsamples3[igood]
+tsamples3 = tsamples2[igood]
+
+grange = np.zeros(len(gnames))
+for i in range(0,len(gnames)): grange[i]=0.99
+brange = np.zeros(len(bnames))
+for i in range(0,len(bnames)): brange[i]=0.99
+    
+fig = corner.corner(gsamples3,labels=gnames,range=grange,plot_datapoints=False,labelsize=24)
 fig.subplots_adjust(left=0.10,bottom=0.10,wspace=0,hspace=0)
 fig1name = 'plots' + outfile + 'gases.png'
 fig.savefig(fig1name)
 
-fig2 = corner.corner(bsamples3,labels=basic,plot_datapoints=False,labelsize=24)
+fig2 = corner.corner(bsamples4,labels=bnames,range=brange,plot_datapoints=False,labelsize=24)
 fig2.subplots_adjust(left=0.10,bottom=0.10,wspace=0,hspace=0)
 fig2name = 'plots' + outfile + 'basic.png'
 fig2.savefig(fig2name)
 
 plist = np.zeros(anum)
 for i in range(0,anum): plist[i] = 10**(maxP + (minP-maxP)*i/(anum-1)) * 1.e-6
-tlist = np.percentile(sampler.chain[:,first:,a1:a2],[16,50,84],axis=0)
+#tlist = np.percentile(sampler.chain[:,first:,a1:a2],[16,50,84],axis=0)
+tlist = np.percentile(tsamples3,[16,50,84],axis=0)
 
 # Plot the T-P profile
 
@@ -1009,10 +1155,10 @@ ax.set_yscale('log')
 plt.xlabel('T (K)',fontsize=14)
 plt.ylabel('P (bar)', fontsize=14)
 
-ax.fill_betweenx(plist,tlist[0,0],tlist[2,0],facecolor='#ff8080')
-ax.plot(tlist[0,0],plist,c='r')
-ax.plot(tlist[1,0],plist,c='k')
-ax.plot(tlist[2,0],plist,c='r')
+ax.fill_betweenx(plist,tlist[0],tlist[2],facecolor='#ff8080')
+ax.plot(tlist[0],plist,c='r')
+ax.plot(tlist[1],plist,c='k')
+ax.plot(tlist[2],plist,c='r')
 
 fig3name = 'plots' + outfile + 'TP.png'
 fig3.savefig(fig3name)
@@ -1021,14 +1167,14 @@ finalparams = np.percentile(sampler.chain[:,first:,:],[50,84],axis=0)[:,0]
 
 finalsigma = np.zeros(pllen)
 for i in range(0,pllen):
-    finalsigma[i] = (float)(finalparams[0][i]) - (float)(finalparams[1][i])
+    finalsigma[i] = (float)(finalparams[1][i]) - (float)(finalparams[0][i])
 outparams = '.' + outfile + 'retrieved.dat'
 ffout = open(outparams,'w')
 
-ffout.write('Mode        {0:s}\nObject      {1:s}\nStar        {2:5.0f} {3:5.2f} {4:8.3f}\nLocation    {5:6.2f} {6:6.2f} {7:6.2f}\nData        {8:s}    1\nDegrade     1\nN_Steps     10\nStreams     1\nPressure    {9:5.1f} {10:5.1f}\nPrior       Uniform\nOutput      samples    Short\nOpacities {0:s}\nParameter    Initial    Mu    Sigma    Min    Max\n'.format(modestr,name,tstar,rstar,sma,dist,ra,dec,datain,minP-6.,maxP-6.,opacdir))
+ffout.write('Mode        {0:s}\nObject      {1:s}\nStar        {2:5.0f} {3:5.2f} {4:8.3f}\nLocation    {5:6.2f} {6:6.2f} {7:6.2f}\nData        {8:s}    1\nDegrade     1\nN_Steps     2\nStreams     1\nPressure    {9:5.1f} {10:5.1f}\nPrior       Uniform\nOutput      modelspectra    Short\nOpacities {11:s}\nParameter    Initial    Mu    Sigma    Min    Max\n'.format(modestr,name,tstar,rstar,sma,dist,ra,dec,datain,minP-6.,maxP-6.,opacdir))
 ffout.write('Basic\n')
 for i in range(b1,b2):
-    if pnames[i]=='Rad':
+    if pnames[i]=='Rad' and 'RtoD2U' in basic:
         finalsigma[i] = np.sqrt((float)(finalparams[1][i])) - np.sqrt((float)(finalparams[0][i]))
         ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],np.sqrt((float)(finalparams[0][i])),np.sqrt((float)(finalparams[0][i])),finalsigma[i],np.sqrt(bounds[i,0]),np.sqrt(bounds[i,1])))
     else:
@@ -1037,11 +1183,9 @@ ffout.write('Gases\n')
 for i in range(g1,g2):
     ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[0][i]),(float)(finalparams[0][i]),finalsigma[i],bounds[i,0],bounds[i,1]))
 ffout.write('Atm       {0:s}\n'.format(atmtype))
-for i in range(a1,a2):
+for i in range(a1,a2+1):
     ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[0][i]),(float)(finalparams[0][i]),finalsigma[i],bounds[i,0],bounds[i,1]))
 ffout.write('Clouds    {0:d}    {1:s}\n'.format(cloudmod,hazestr))
 for i in range(c1,c2):
     ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[0][i]),(float)(finalparams[0][i]),finalsigma[i],bounds[i,0],bounds[i,1]))
-ffout.write('End\n')
-for i in range(e1,e2):
-    ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[0][i]),(float)(finalparams[0][i]),finalsigma[i],bounds[i,0],bounds[i,1]))
+ffout.write('End\ndeltaL	       0.      0.     1.0  -10.0    10.0\nlogf	       1.      1.     0.1    0.01  100.')

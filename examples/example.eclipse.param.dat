@@ -10,6 +10,7 @@ Pressure	-3.0	2.5
 Streams		1
 Prior		Uniform
 Output		samples
+Opacities	../Opacities
 Parameter   Initial   Mu    Sigma    Min     Max
 Basic
 Rad	      12.75    12.75   1.0    8.0    22.0	    

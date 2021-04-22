@@ -1,7 +1,7 @@
 USER GUIDE TO THE APOLLO ATMOSPHERE RETRIEVAL CODE
 
-APOLLO v0.9.13.2rc Release Candidate
-25 November 2019
+APOLLO v0.10.2rc Release Candidate
+30 December 2019
 
 Alex R. Howe
 
@@ -14,6 +14,7 @@ Apollo.tar
 	MakeHaze source code
 	Plot Apollo source code
 	Plot Converge source code
+	Plot Opac source code
 	JWST filter list
 	JWST filter functions
 	Example files
@@ -59,22 +60,44 @@ GCC 4.9.4
 
 NOTE: the version of emcee is especially important. Emcee version 3 makes
 significant changes an is not fully backward-compatible. In particular, the
-MPI Pool functionality is forked to another module, schwimmbad, in Emcee 3.
+MPI Pool functionality is forked to another module, schwimmbad, and the sample
+chain is handled with a new Backends class.
 
 The build environment needed to run APOLLO on a computing cluster will vary
 with the particular cluster. You may need to load Anaconda and the C++
 compiler, and possibly create a Python virtual environment. Contact your local
 support team for assistance.
 
+NOTE for Discover: to convert from the local version that uses Emcee 2
+and the on-cluster MPI version that uses Emcee 3, do the following:
+1. In setup.py, change "g++-mp-9" to "g++" and "gcc-mp-9" to "gcc".
+2. In Apollo.py, change:
+    import corner
+To:
+    #import corner
+    import matplotlib
+    matplotlib.use('pdf')
+3. In Apollo.py, change:
+    from emcee.utils import MPIPool
+To:
+    from schwimmbad import MPIPool
+4. In Apollo.py, before setting up the sampler, add:
+    reader = emcee.backends.Backend()
+5. In the EnsembleSampler constructor, add the parameter "backend=reader".
+6. In the sample iteration loop, add at the beginning:
+    coords = reader.get_last_sample().coords
+    blobs = reader.get_blobs()[i]
+7. In the sample iteration loop, change "sample[0]" to "coords" and "sample[3]"
+    to "blobs" at each instance.
+8. Comment out the entire plotting section.
+
 2. FUNCTIONALITY
 
-APOLLO version 0.9.10 is verified to be accurate and stable with the one-stream
-radiative transfer algorithm for transit, secondary eclipse, and direct
-imaging; for layered and 5-parameter T-P profiles; for cloud-free models, an
-opaque cloud deck, a cloud slab of uniform particle size and density, and a
-cloud of gaussian particle density and uniform particle size.
-
-Later version testing is pending.
+APOLLO version 0.10 is verified to be accurate and stable with the
+one-stream radiative transfer algorithm for transit, secondary eclipse, and
+direct imaging; for layered and 5-parameter T-P profiles; for cloud-free
+models, an opaque cloud deck, a cloud slab of uniform particle size and
+density, and a cloud of gaussian particle density and uniform particle size.
 
 The two-stream radiative transfer algorithm is verified only for cloud-free and
 opaque cloud deck eclipse spectra.
@@ -95,6 +118,10 @@ Makespectrum.
 Plot Converge plots the motion of the walkers in each dimension to the screen.
 This can be useful to troubleshoot if the walking is malfunctioning.
 
+Plot Opac plots two sets of cross sections from different tables to the screen
+for a particular pressure and temperature. This is meant to compare similar
+tables to check for any any differences.
+
 MakeHaze computes new haze opacity tables using Mie scattering from a table of
 indices of refraction for the haze material. Note that MakeHaze is a C++
 program, unlike the others.
@@ -109,16 +136,16 @@ python setup.py build_ext --inplace
 This script contains all of the setup needed to run both APOLLO and
 Makespectrum. APOLLO is also bundled with tables of molecular and haze
 particle cross sections for NIR and MIR observations, which are also necessary
-to run the code. However, these tables total about 5 GB, so due to their size,
+to run the code. However, these tables total 10.6 GB, so due to their size,
 they are available only via USB drive or FTP.
 
 NOTE: You will need to set the C and C++ compiler names in setup.py to the
 compilers used by your system.
 
 By default, these tables are read from a directory named Opacities in the
-parent directory to the code's work directory. This allows multiple builds of
-the code to be run in different directories. However, the memory allocation of
-a cluster is often such that you will need to store the opacity tables in an
+parent directory to your work directory. This allows multiple builds on the
+code to be run in different directories. However, the memory allocation of a
+cluster is often such that you may need to store the opacity tables in an
 archival or scratch directory. The filepath to this directory is specified with
 the Opacities parameter in the input file.
 
@@ -130,8 +157,9 @@ APOLLO is normally called with a single command line argument, which is the
 name of the input file. If no input file is specified, it will default to the
 bundled example file, example.resolved.dat. If a second command line argument,
 "Serial", is added, it will override parallel operation and initiate a
-minimal-length serial run for testing purposes. APOLLO may also be run in
-serial mode if parallel mode is turned off in the input file.
+minimal-length serial run for testing purposes. (This should take less than 10
+minutes on a modern processor.) APOLLO may also be run in serial mode if
+parallel mode is turned off in the input file.
 
 In serial model, APOLLO may be run as a regular Python program:
 
@@ -150,13 +178,24 @@ depending on the cluster.
 The example files include the parameters for GJ 570D for resolved spectra, and
 for HD 189733b for transit and eclipse spectra.
 
+NOTE: Different clusters may require different settings to run APOLLO
+efficiently. Examples:
+
+Discover at NCCS requires nodes=8 (28 cores per node), ntasks=216, and
+cpus-per-task=1.
+
+Great Lakes at U of M requires... (36 cores per node)
+
+The old Flux cluster at U of M (which used PBS) requires nodes=14 and ppn=16
+(16 cores per node).
+
 Apollo Makespectrum is run as a regular Python program and does not need MPI:
 
 python Apollo.makespectrum.py <input file>
 
 Plot Apollo is run from the command line as Plot.Apollo.py. It can replicate
 the output plots for both APOLLO and Makespectrum. Plot Apollo takes 4 command
-line paramters:
+line arguments:
 1. Input file. This is a sample file or a spectrum file.
 2. Object name. This will determine the output file names.
 3. Data type. "Samples" for a samples file, which will create the APOLLO plots.
@@ -164,11 +203,27 @@ line paramters:
 4. Reference spectrum. Required for spectrum files only. The input (observed)
 spectrum to plot against the spectral fit. Residuals will be calculated by
 binning the spectral fit to the reference spectrum.
+4. Confidence interval. Optional for samples files. Sets the bounds on the
+histograms such that the specified fraction of samples fall within the
+waterfall plots. Default: 0.99
 
 Plot Converge is run from the command line as Plot.Converge.py. It plots the
 motion of all of the walkers over a single dimension in each frame and will
 show if APOLLO has converged. It takes a samples file name as a command line
-argument.
+argument. By default, it displays the plots in a window instead of saving them.
+
+Plot Opac is run from the command line as Plot.Opac.py. It plots the molecular
+cross sections from two specified tables at a particular pressure and
+temperature. By default, it displays the plot in a window instead of saving it.
+Plot Opac takes 4 command line arguments:
+1. First cross section file name.
+2. Second cross section file name.
+3. Pressure in mbar.
+4. Temperature in kelvin.
+NOTE: Plot Opac rounds down to the nearest pressure-temperature point instead
+of interpolating. This is because it is meant to compare the actual values in
+the tables for similar tables, and interpolation could mask the actual
+differences.
 
 MakeHaze is run from the command line as ./MakeHaze. It takes 3 optional
 command line arguments:
@@ -180,7 +235,7 @@ to 1, representing no refraction.
 
 Note that MakeHaze.cpp should be able to compute >100 wavelengths x 161
 particle sizes per minute. If it is taking significantly longer, there may
-be a problem with the input file.
+be a problem with the indices file.
 
 5. INPUT FILE FORMAT: SETTINGS
 
@@ -251,12 +306,6 @@ reliability of the code. Default: 3
 NOTE: This setting is hard-coded to 1 in Makespectrum because this program is
 intended to produce a high-resolution model.
 
-Spectrum, 1 field:
-1. Spectral range. Used only in Makespectrum. "NIR" for near-infrared
-(0.6-5.0 microns), "MIR" for mid-infrared (5-28 microns). Default: "NIR"
-NOTE: APOLLO will use the correct wavelength range automatically, but it is
-implemented only for data sets solely in one of the two ranges.
-
 N_Walkers, 1 field:
 1. Number of walkers to be initialized by emcee. Default: 8*N, where N is the
 number of parameters.
@@ -271,7 +320,7 @@ N_Steps, 1 field:
 the walkers to converge and may require adjustment for any given object.
 Default: 30000
 NOTE: The "Serial" command line argument overrides this setting and sets nsteps
-to 10.
+to 2.
 NOTE: autocorrelation convergence checking is not yet implemented.
 
 Pressure, 2 fields:
@@ -313,12 +362,51 @@ calculation.
 3. Print full output flag. If the codeword "Full" is included, the code will
 output the full sample array to the samples file instead of the last 10% of the
 array. This allows analysis of the burn-in phase of the run.
+NOTE: The "Serial" command line argument overrides this setting and sets it to
+True.
 NOTE: The order of "Short" and "Full" may be reversed for APOLLO.
 NOTE: The "Short" flag may be in any position for Makespectrum.
 
 Opacities, 1 field:
 1. Opacity files directory. This will often need to be a scratch or archival
 directory on a cluster. Default: "../Opacities"
+
+Tables, 2 fields:
+1. Set of opacity tables to use for computing the spectrum. For example,
+listing "nir" will use files of the form "mol.nir.dat".
+NOTE: The default for the opacity table selection is for the code to
+automatically select "nir", "mir", or "wide" depending on the wavelengths
+covered by the observed spectrum.
+2. Set of opacity tables to use for computing the effective temperature. The
+effective temperature must be computed over a wide wavelength range, so a much
+lower spectral resolution is needed to do it efficiently. Default: "lores"
+
+Currently included tables:
+"nir": 0.6-5.0 microns, R=10,000.
+"mir": 5.0-30.0 microns, R=10,000.
+"wide": 0.6-30.0 microns, R=10,000.
+"lores": 0.6-30.0 microns, R=200.
+
+Output_Mode, 1 field:
+1. Output spectroscopic or photometric mode. This is used only in Makespectrum.
+If one of JWST's spectroscopic modes is specified, Makespectrum will create a
+spectrum with noise using a pipeline for that mode in addition to the
+full-resolution spectrum. If a file containing a filter throughput function is
+specified, Makespectrum will compute the weighted mean flux through the filter.
+These filter functions must have two columns:
+1. Wavenumber in cm^-1
+2. Fractional throughput.
+By default, this parameter is not used.
+
+Supported JWST modes:
+NIRISS
+NIRCam
+NIRSpec1H
+NIRSpec2H
+NIRSpec3H
+NIRSpec4H
+NIRSpec4M
+Prism
 
 6. INPUT FILE FORMAT: PARAMETERS
 
@@ -359,12 +447,20 @@ NOTE: APOLLO includes an internal prior that the mass must be less than 80
 Jupiter masses. It is important to set the initial radius and gravity so that
 the mass falls below this limit.
 NOTE: Cloud_Base/P_cl allows the inclusion of an opaque cloud deck in addition
-to another cloud model. (This also works for refraction limits.)
+to another cloud model. (This also works to represent the limits imposed by
+refraction on probing transit spectra.)
 
-Gases
+Gases, 1 field:
+1. Filler gas. This gas will comprise  the balance of the atmosphere after the
+listed gases in the model are accounted for, subtracting their abundances
+from 1. Any of the supported molecules can be used as the filler gas.
+Default: "h2-only".
+
 List of molecules included in the model in log-abundance. Currently supported
 molecules:
-h2
+h2 (H2 + He)
+h2only
+he
 h-
 h2o
 ch4
@@ -378,11 +474,12 @@ crh
 feh
 tio
 vo
+hcn
+n2
+ph3
 
-NOTE: The H2 (actually H2 and He combined) abundance is set by the difference
-of 1 minus the other abundances.
-NOTE: Alkali metals are automatically removed from MIR calculations because
-they have negligible opacity in that range.
+NOTE: The Lupu_alk option is currently disabled because of difficulties in
+parsing the tables for use by APOLLO.
 
 Atm, 2 fields:
 1. Type of T-P profile for the atmosphere. "Layers" for an arbitrary number of
@@ -403,6 +500,8 @@ Line et al. (2015).
 NOTE: Although the peak in the distribution for gamma is set to 5.e-5, the
 upper bound must be set to 1000 because this is the approximate point where the
 roughness penalty approaches its asymptotic value.
+NOTE: It may be necessary to set the initial guess for gamma high, around ~10,
+to avoid the code getting stuck in a local minimum with too much smoothing.
 
 NOTE: A single T# point will result in an isothermal atmosphere.
 NOTE: The default cross section tables have boundaries of 75 K and 4000 K,
@@ -414,6 +513,9 @@ log(kappaIR): Mean opacity in the infrared.
 gamma1: gamma1 parameter from Line et al. (2012).
 gamma2: gamma2 parameter from Line et al. (2012).
 alpha: alpha parameter from Line et al. (2012).
+
+NOTE: If "Parametric" is specified, and the wrong number of parameters are
+listed, the code will halt with an error message.
 
 Clouds, 2 fields:
 1. Cloud model number.
@@ -467,9 +569,6 @@ observations. Default: 0.0
 logf: log of error bar correction factor (multiplies the size of the error
 bars of the input spectrum). Default: 1.0
 
-NOTE: In APOLLO, the output will add one additional parameter to the end of this
-list, which is the effective temperature computed for the model.
-
 7. SPECTRUM FILE FORMAT
 
 The spectrum file format has 6 columns and no header:
@@ -504,19 +603,23 @@ out any pseudocontinuum that would complicate the fit.
 
 8. MOLECULAR CROSS SECTION TABLE FORMAT
 
-The molecular cross section files created by MakeHaze consist of a grid of
-630 x 21205 entries. The columns of the table correspond to a grid 18 pressure
-points by 35 temperature points. The pressure points are logarithmically spaced
-from 300 bar to 1 microbar, and the temperature points are logarithmically
-spaced from 75 K to 3500 K, which may be extrapolated up to 4000 K.
+The molecular cross section files created by MakeHaze consist of a header row
+followed by a grid of cross sections. The header row contains 10 fields:
+1. Number of pressure points. Packaged as 18.
+2. Log-minimum pressure in mbar. Packaged as -3.0.
+3. Log-maximum pressure in mbar. Packaged as +5.5.
+4. Number of temperature points. Packaged as 36.
+5. Log-minimum temperature. Packaged as 1.875061 (75 K).
+6. Log-maximum temperature. Packaged as 3.599199 (4000 K).
+7. Number of wavelength points.
+8. Minimum wavelength in microns.
+9. Maximum wavelength in microns.
+10. Spectral resolution.
 
-Two sets of tables are currently packaged with APOLLO: one covering the range
-of 0.6-5.0 microns and one covering the range of 5-28 microns.
-The columns of the table correspond to wavelength, spaced logarithmically. As
-packaged, the tables have a resolution of R = 10000*ln(10) = 4,343. However,
-the code is currently set up to use only one set of tables at a time.
-
-Note that APOLLO uses the boundary values of the cross section tables if the
+Each row of the grid corresponds to a single wavelength. Within each row, cross
+sections are arranged from lowest to highest pressure as the major axis and
+lowest to highest temperature as the minor axis.
+NOTE: APOLLO uses the boundary values of the cross section tables if the
 temperature or pressure values go outside the table.
 
 9. HAZE TABLE FORMAT
@@ -534,7 +637,7 @@ followed by the the cross section per particle at each particle size.
 
 NOTE: Atmosphere.cpp contains functions to compute haze cross sections directly
 from the indices of refraction via Mie scattering, but these are not supported
-in v0.9.13.1 because it is much slower. Use MakeHaze to compute new haze
+in v0.10 because it is much slower. Use MakeHaze to compute new haze
 opacity tables.
 
 In addition to the pre-computed cross sections, the included MakeHaze.cpp
@@ -553,24 +656,38 @@ directory, especially on a computing cluster. The output file is about 6 MB per
 1000 steps, using the standard format of printing only the last 10% of samples.
 
 The first line of the output file contains the number of walkers, number of
-steps, and number of parameters. The second line is the parameter list as
-specified in the input file, plus the extra derived parameter for effective
-temperature. Subsequent lines list all of the paramters for each sample. By
-default, only the last 10% of samples are printed, after the burn-in, to reduce
-file sizes. The full sample array can be printed by adding the flag "Full" to
-the "Output" line in the input file.
+steps, and number of parameters. If a layered T-P profile is used, it also
+includes the number of pressure points, log-minimum pressure, and log-maximum
+pressure, which are needed to set the bounds on the T-P plot in Plot Apollo.
+The second line is the parameter list as specified in the input file, followed
+by the derived parameter of effective temperature. (The other derived
+parameters can be computed from the samples file.) Subsequent lines list all of
+the paramters for each sample. By default, only the last 10% of samples are
+printed, after the burn-in, to reduce file sizes. However, in serial mode, all
+of the samples are printed. The full sample array can be also printed by adding
+the flag "Full" to the "Output" line in the input file.
 
 APOLLO also produces a new input file for the object with the best fit
 parameters from the retrieval. This makes it much easier to feed it back into
 Makespectrum to plot it. (This can't be done directly by APOLLO because of how
 emcee handles things.) This file goes to the work directory and ends with
 "retrieved.dat"
+NOTE: This file uses the input values for the statistical "End" parameters
+instead of the best fit values because the best fit values cause APOLLO to
+crash if it is fed back in directly.
 
 APOLLO also produces three plots, which go to the "plots" subdirectory:
-1. A waterfall plot of the "basic" parameters such as radius and gravity, with
-effective temperature added.
+1. A waterfall plot of the "basic" parameters of radius, gravity, and cloud
+base pressure (if included under Basic), plus four derived parameters: mass,
+C/O ratio, metallicity, and effective temperature.
 2. A waterfall plot of the molecular abundances.
 3. A plot of the retrieved temperature-pressure profile with 1-sigma limits.
+
+NOTE: By default, the waterfall plots set the boundaries such that 99% of the
+samples fall within the histograms, depending on your results, you may need to
+change this value. This can be done by remaking the plots with Plot Apollo and
+using the optional final command line argument to specify a different
+confidence interval.
 
 Makespectrum outputs a full-resolution spectrum file. Commented sections of the
 code also create spectra in JWST's spectroscopic and photometric modes. For
@@ -578,11 +695,14 @@ photometric modes, the file name for the thruput function must be hard-coded.
 These output files have the same format as the input spectrum and are sent to
 the "modelspectra" subdirectory.
 
-Makespectrum also plots the retrieved spectrum against the input spectrum with
-residuals. This figure goes to the "plots" subdirectory.
+Makespectrum also plots two versions of the retrieved spectrum against the
+input spectrum, one with the full-resolution retrieved spectrum and one binned
+to the observations. Residuals are plotted on an offset axis. These figures go
+to the "plots" subdirectory.
 
 Plot Apollo replicates all of the plots produced by APOLLO or Makespectrum,
-depending on the type of input file.
+depending on the type of input file. It also outputs 1-sigma bounds on the four 
+derived parameters to the command line.
 
 *******************************************************************************
 
@@ -592,26 +712,118 @@ NOTE: The h-minus opacity PLUS the fencepost error in gamma PLUS the passing of
     the normalization to the Planet object could all be contributing to the
     code failing on L-dwarfs.
 
-1. Write a script to compute the effective temperature with error bars.
+1. Improve the observation binning for spectra with gaps.
 
-2. Improve the observation binning for spectra with gaps.
+2. Look at the needs for other opacity tables, e.g. higher-resolution tables
+   or binary format. Need to talk to people about the needs of the code to
+   decide what to do about it.
 
-3. Implement a default parametric T-P profile.
-
-4. Extend the cross section tables to 4000 K (36 temps).
-
-5. Need to find a way to set minP and maxP correctly in Plot Apollo.
-
-6. Add an option to request specific spectroscopic and photometric modes in
-    Makespectrum in the input file.
-
-7. Make the code work for NIR and MIR simultaneously.
-
-8. Look at the needs for other opacity tables: higher-resolution tables, wider
-    frequency range, and/or binary format. Need to talk to people about the
-    needs of the code to decide what to do about it.
+3. Add cloud models and parametric T-P profiles to Plot Apollo.
 
 CHANGE LOG
+
+v0.10.2
+Added the Plot Opac script to plot cross sections to check for differences.
+Added documentation for Plot Opac.
+Added the Output_Mode parameter that specifies a JWST mode or a filter function
+for which to compute a spectrum or flux.
+Updated and tested the JWST mode calculations in Makespectrum.
+Tweaked the labelling in the spectrum fit plot.
+Revised the To-Do list.
+Recorded derived parameters for all samples, not just those with nonzero
+probability.
+Included all samples after the burn-in in the waterfall plots, correcting the
+previous incorrect method.
+Changed the radius output from Earth radii to Jupiter radii.
+Corrected the notes on blob handling.
+Added a section to Plot Apollo to print the error bars for the derived
+parameters.
+Added a "confidence interval" command line parameter to Plot Apollo.
+Added "binned" and "fullres" spectrum files and best fit plots to the tar
+archive.
+Updates examples files with the "Opacities" parameter.
+
+v0.10.1
+Finished a few missing haze cross section tables.
+Added the pressure profile to the samples output file for layered T-P profiles
+to allow them to be plotted correctly in Plot Apollo.
+Heavy overhaul of the plotting subroutines in APOLLO to improve the waterfall
+plots.
+The probability function now computes the mass, C/O ratio, metallicity, and
+temperature of the planet on the fly and passes them to the sampler as a blob.
+The "Basic" waterfall plot now includes the four derived quantities with
+correct labels. The "Gases" plot also has corrected labels.
+Harmonized the plotting functions in Plot Apollo with those in APOLLO and
+Makespectrum.
+Added material to the README file about the various configurations needed to
+run APOLLO on a cluster.
+Modified the spectral fit plots to draw the observations as points with error
+bars on top of the computed spectrum.
+Created separate plots for the full-resolution computed spectrum and the
+spectrum binned to the observations.
+Added an option to choose a filler gas.
+Set the limits in the corner plots to 99% confidence levels to cut out outliers.
+Corrected the hydrogen scattering opacity.
+Fixed a bug that prevented the gas list from being passed to the Planet object
+correctly.
+Made the opacity table read-in subroutine print full filenames instead of
+species.
+Verified that the output of the code is identical to version 0.9.x when the
+same format of opacity tables is used.
+Added notes to the README file that include how to switch between Emcee 2 and
+Emcee 3.
+
+v0.10
+Heavy overhaul of the opacity managing system with four sets of opacity tables:
+1. NIR tables (nir), 0.6-5.0 microns at R=10000
+2. MIR tables (mir), 5.0-30.0 microns at R=10000
+3. Wide tables (wide), 0.6-30.0 microns at R=10000
+4. Lo-res tables (lores), 0.6-30.0 microns at R=200, used to calculate
+   effective temperature from bolometric flux.
+APOLLO now reads in two sets of tables: the lo-res tables for effective
+temperature, and automatically selecting the appropriate tables for the
+spectral retrieval. The lo-res tables have been designed so that they add about
+10% to the workload on a typical ground-based (e.g. JHK) spectrum.
+This means that while APOLLO computes a hi-res spectrum over only the
+wavelength range of the observations, it automatically computes a lo-res
+spectrum over the full 0.6-30 micron range.
+Effective tempearture is always computed with one stream.
+The hi-res and lo-res tables must have the same dimensions in temperature and
+pressure (as well as all molecules within each set).
+The haze opacity is interpolated automatically instead of read directly from
+the (internal) table, so it always uses the hi-res tables.
+The new tables also extend to 4000 K instead of 3500 K.
+The opacity tables now include a header listing the size and limits of the grid
+in pressure, temperature, and wavelength space (assuming all of them are
+logarithmically distributed).
+Added H2-only, He, HCN, N2, and PH3 to the list of supported molecules.
+The standard "h2" opacity tables are now H2+He instead of H2-only.
+Added Mass, C/O, [Fe/H], and the corrected Teff to the "basic" waterfall plots
+in Plot Apollo (direct APOLLO plots pending).
+Fixed a bug that set the radius wrong in the best fit output file.
+Increased the number of steps to 11 in Serial mode in case of rounding errors
+to ensure that some samples output is produced.
+Removed the "Spectrum" setting and wrange variable, which are replaced by the
+new system.
+Combined the integer "switch" parameters for MakePlanet into a single int array
+argument.
+Made the "Serial" override set printfull to True.
+Stopped printing "Out of Bound" statements for the statistical "End" parameters
+to make the output less unwieldy.
+Set the default number of steps in Serial mode to 2. With printfull set to
+True, this is all that is needed for testing.
+Added gamma into the best fit output file where it had been previously omitted.
+Added the C++ cutoff switch to Makespectrum.
+Excluded samples that were out of bounds from the waterfall plots.
+NOTE: This may not be the correct way to do it. I just needed to do it to
+remove nonphysical Teff calculations. The full samples are still computed as
+intermediate products. EDIT: It was wrong and has been changed in v0.10.2.
+Cleaned up the output from the likelihood function test in APOLLO.
+Added another cutoff switch to APOLLO, which causes it to test the likelihood
+function once and then halt.
+Reset the statistical "End" parameters in the best fit output file because the
+parameters found by emcee prevented it from running. (Reason unknown. There
+might be a stray log somewhere.)
 
 v0.9.13.2
 Cleaned up maketar.sh to prevent it from including extra files.
@@ -621,6 +833,14 @@ Removed the effective temperature calculation because it was a shortcut that
 didn't work. A script to compute it correctly from the luminosity is pending.
 Verified that the fencepost error in gamma appears to have resolved the hot top
 of the atmosphere problem.
+Fixed a couple bugs in the best fit output format.
+Fixed a bug in the TP profile plotting in Plot Apollo.
+Removed the minus sign in the best fit output format.
+Fixed the order of indices in Plot Converge.
+Changed the output of APOLLO to list the number of steps actually recorded in
+the samples file. (This makes the Plot programs work better.)
+Changed Plot Apollo to match the new format.
+Corrected the labelling in Plot Apollo.
 
 v0.9.13.1
 Changed number of walkers to account for adding Teff to the table.
@@ -926,36 +1146,22 @@ Give each cloud model a name to create a switch for them, including 2-param?
 Make a function to allow Makespectrum to run from the command line in the
     Python environment without rereading the cross section tables. Important,
     but long-term development working with the people doing the web interface.
-     
+    
 *Code Mechanics*
-Combine the Planet_layer and Planet_auto files in some respect, possibly
-    moving the functions they share into a separate file. Viable, but would be
-    a pain to do right. It might require overloading constructors. But if I
-    add multiple parametric T-P profiles, I'll probably need to.
-    Actually, take a closer look at how I handle the profiles now.
-Add options to test for convergence on the fly as both the only and an
-    additional stopping criterion to max_steps. I think emcee can do that, but
-    I need to make sure it's finding the correct answers before I try it.
-Make the code able to handle tables of different sizes in T-P space. The number
-    of temperature and pressure points are hard-coded in the Planet
-    constructors, but more importantly, it assumes the table for each species
-    is the same size. This is mainly if I want to implement things like Exomol,
-    but I've got enough problems figuring out what to do with the opacity
-    tables already, so I can't say much about it until I figure those out.
-Implement autocorrelation to check for convergence.
+Add options to test for convergence on the fly as both emcee's autocorrelation
+    and an additional stopping criterion to max_steps.
+Make the code able to handle tables of different sizes in T-P space. Currently,
+    it assumes the table for each species is the same size. This is mainly if
+    I want to implement things like Exomol and/or mix and match them.
 
 *Model Completeness*
-Figure out what's up with the hot top of the atmosphere. Maybe add a constraint
-    to force it to be close to the layer below? Or would that make it worse?
-    Could be the fencepost error in gamma.
 I'm not accounting for reflection, which requires single-scattering albedo.
     This might be part of Arthur Adams's program.
 
 *Wish List*
 Add additional cloud models. This will probably be the top priority from this
     sub-list.
-Allow nitrogen as a filler along with hydrogen. This will be important if I
-    ever get around to doing terrestrial planets.
+Add additional parametric T-P profiles.
 Add additional molecules. H2-minus seems fairly important, but I'm not sure
     what else would be.
 Add a chemical equilibrium code. Note: suppress reactions that are slower than
@@ -964,9 +1170,6 @@ Make sure the 2-stream algorithm works with clouds. (Split the cloud
     absorption and scattering opacities, etc.) Note 1: need to set the optical
     depth to infinity if it is below an opaque cloud deck. Note 2: this is what
     Arthur Adams is working on.
-Use blobs and alternate likelihood/probability functions to combine the
-    functionality of APOLLO and Makespectrum. (Probably in Version 2 or
-    something.)
 
 *2-Part Models*
 Implement a parameter for partial cloud coverage. Think about how many
@@ -979,14 +1182,28 @@ Implement phase curve observations. Basically the same as partial cloud
     coverage: dayside and nightside models with the "partial coverage"
     parameter being the phase angle.
 
-DISCARDED IDEAS
+*Eventual Version 2 Ideas*
+Break up the functions in APOLLO/Makespectrum and Planet_layer/Planet_auto into
+    separate files to be imported to clean things up.
+Create a single method to handle all of the spectroscopic mode calculations.
+Combine Planet_layer and Planet_auto into a single Planet class.
+Combine APOLLO and Makespectrum into a single code with options for its various
+    functions.
+Have the code recognize the specific parameters listed for particular
+    parametric T-P profiles and cloud models and implement default values for
+    missing parameters.
+Have APOLLO create a retrieved spectrum file and best fit plot directly after
+    an MCMC run, possibly with a separate spectrum-computing function and/or
+    using blobs.
+
+DISCARDED IDEAS FROM VERSION 1
 
 Make the settings not depend on being on separate lines. Dropped for the same
     reason Python uses whitespace. I've seen what happens when it's not
-    enforced, and it's an unreadable mess.
+    enforced (*cough* CoolTLUSTY *cough*), and it's an unreadable mess.
 Allow extrapolation of temperature outside the table. Using the boundary values
     is probably pretty safe in pressure space. In temperature, I've got it
-    covered for 75 K to 3500 K, and that will cover the actual region being
+    covered for 75 K to 4000 K, and that will cover the actual region being
     probed for everything from Saturn to the top of the L-dwarf range. Plus,
     I don't particularly trust the temperature extrapolation.
 Turn the APOLLO and Makespectrum codes into functions in a single script. Even
@@ -1002,3 +1219,6 @@ Add the functionality to compute haze scattering directly from the indices of
 Have APOLLO create a retrieved spectrum file and plot directly. This doesn't
     work because the spectrum calculation is hidden inside the lnlike function,
     and emcee isn't designed to modify it.
+Add a default T-P profile for "Parametric" atmospheres. This doesn't work
+    because the T-P profile parameters are tied in with the parameter list
+    length. By default, the code throws an error message instead.

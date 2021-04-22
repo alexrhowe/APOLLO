@@ -46,13 +46,10 @@ int main(int argc, char *argv[]){
   std::ofstream output;
   output.open(fOut.c_str());
 
-  //int nwave = 21205;
-  //double wmin = 0.6;
-  //double wmax = 5.0;
-
-  int nwave = 17228;
-  double wmin = 5.0;
-  double wmax = 28.0;
+  double wmin = 0.6;
+  double wmax = 30.0;
+  double resolv = 10000.;
+  int nwave = (int)(ceil(log(wmax/wmin)*resolv))+1;
   
   int nsize = 161;
   double smin = -4.0; // particle radii in microns
@@ -61,7 +58,7 @@ int main(int argc, char *argv[]){
   output << nwave << " " << wmin << " " << wmax << " " << nsize << " " << smin << " " << smax << "\n";
   
   for(int i=0; i<nwave; i++){
-    wave = wmin*exp(i/10000.);
+    wave = wmin*exp(i/resolv);
     output << std::setprecision(10) << std::showpoint << wave;
 
     for(int j=0; j<161; j++){

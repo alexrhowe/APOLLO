@@ -11,17 +11,20 @@ cdef class PyPlanet:
         if self.thisptr is not NULL:
             del self.thisptr
 
-    def MakePlanet(self, modenum, wavens, cloudnum, hazetype, wrange, mollist, opacdir):
-        self.thisptr = new Planet(modenum, wavens, cloudnum, hazetype, wrange, mollist, opacdir)
+    def MakePlanet(self, switches, wavens, wavenslo, mollist, opacdir, hires, lores):
+        self.thisptr = new Planet(switches, wavens, wavenslo, mollist, opacdir, hires, lores)
     
+    def get_Teff(self):
+        return self.thisptr.getTeff()
+
     def set_Params(self, plparams, abund, tpprofile):
         return self.thisptr.setParams(plparams, abund, tpprofile)
 
     def get_Spectrum(self, streams):
         return self.thisptr.getSpectrum(streams)
     
-    def readopac(self, mollist, wavens, opacdir):
-        return self.thisptr.readopac(mollist, wavens, opacdir)
+    def readopac(self, mollist, wavens, table, opacdir):
+        return self.thisptr.readopac(mollist, wavens, table, opacdir)
 
     def setWave(self, npoints, rxsec, wavens, abund):
         return self.thisptr.setWave(npoints, rxsec, wavens, abund)
