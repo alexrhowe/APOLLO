@@ -202,7 +202,11 @@ elif datatype == 'Samples':
     bsamples = samples[:,basic]
     gsamples = samples[:,gases]
     tsamples = samples[:,temps]
-    
+    '''
+    for i in range(0,len(bsamples)):
+        bsamples[i,-3] = 10**gsamples[i,1] / 10**gsamples[i,0]
+        bsamples[i,-2] = (10**gsamples[i,0]*16. + 10**gsamples[i,1]*12.)/0.0196    
+    '''
     grange = np.zeros(len(gnames))
     for i in range(0,len(gnames)): grange[i]=confidence
     brange = np.zeros(len(bnames))
@@ -240,11 +244,12 @@ elif datatype == 'Samples':
     fig3name = 'plots/' + outfile + 'TP.png'
     fig3.savefig(fig3name)
 
+    #bsamples, bnames2
     print('1-sigma bounds on basic parameters')
-    blist = np.percentile(bsamples,[16,50,84],axis=0)
+    blist = np.percentile(samples,[16,50,84],axis=0)
     for i in range(0,len(blist[0])):
-        if len(bnames2[i])<=6: print('{0:s}:\t\t {1:10.5f} {2:10.5f} {3:10.5f}'.format(bnames2[i],blist[0][i],blist[1][i],blist[2][i]))
-        else: print('{0:s}:\t {1:10.5f} {2:10.5f} {3:10.5f}'.format(bnames2[i],blist[0][i],blist[1][i],blist[2][i]))
+        if len(pnames[i])<=6: print('{0:s}:\t\t {1:10.5f} {2:10.5f} {3:10.5f}'.format(pnames[i],blist[0][i],blist[1][i],blist[2][i]))
+        else: print('{0:s}:\t {1:10.5f} {2:10.5f} {3:10.5f}'.format(pnames[i],blist[0][i],blist[1][i],blist[2][i]))
 
 else:
     print('Error: input type wrongly specified. Spectrum or Samples.')

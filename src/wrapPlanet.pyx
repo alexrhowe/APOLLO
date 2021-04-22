@@ -1,5 +1,5 @@
 # distutils: language = c++
-# distutils: sources = [Planet_auto.cpp,Atmosphere.cpp,constants.cpp]
+# distutils: sources = [Planet.cpp,Atmosphere.cpp,constants.cpp]
 
 cdef class PyPlanet:
     cdef Planet *thisptr
@@ -13,7 +13,7 @@ cdef class PyPlanet:
 
     def MakePlanet(self, switches, wavens, wavenslo, mollist, opacdir, hires, lores):
         self.thisptr = new Planet(switches, wavens, wavenslo, mollist, opacdir, hires, lores)
-    
+
     def get_Teff(self):
         return self.thisptr.getTeff()
 
@@ -22,7 +22,7 @@ cdef class PyPlanet:
 
     def get_Spectrum(self):
         return self.thisptr.getSpectrum()
-    
+
     def readopac(self, mollist, wavens, table, opacdir):
         return self.thisptr.readopac(mollist, wavens, table, opacdir)
 

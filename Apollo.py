@@ -110,6 +110,7 @@ dist = 10.0          # Standardized distance, 10 pc
 RA = 0.0             # Right ascension
 dec = 0.0            # Declination
 minmass = 0.5        # Minimum mass in Jupiter masses
+maxmass = 80.0       # Maximum mass in Jupiter masses
 hires = ''           # Default set of opacity tables to compute the spectra
 lores = 'lores'      # Default low-resolution tables to compute Teff
 minP = 0.0           # Pressure range to integrate over in cgs, default 1 mubar to 1 kbar.
@@ -119,7 +120,8 @@ vres = 71            # Number of layers for radiative transfer
 streams = 1          # Use 1-stream by default
 wavei = 10000./0.60  # Full NIR wavelength range
 wavef = 10000./5.00
-outmode = ''
+outmode = ''         # JWST observing mode
+exptime = 1000.      # Exposure time in seconds
 outdir = 'samples'   # Default output directory
 short = False        # Switch to create short output file names
 printfull = False    # Switch to print the full sample array instead of the last 10%
@@ -187,8 +189,9 @@ while(True):
         if len(line)>1: dist = (float)(line[1])
         if len(line)>2: RA = (float)(line[2])
         if len(line)>3: dec = (float)(line[3])
-    elif line[0]=='Minimum_Mass':
+    elif line[0]=='Mass_Limits':
         if len(line)>1: minmass = (float)(line[1])
+        if len(line)>2: maxmass = (float)(line[2])
     elif line[0]=='Tables':
         if len(line)>1: hires = line[1]
         if len(line)>2: lores = line[2]
@@ -205,6 +208,7 @@ while(True):
         if len(line)>1: streams = (int)(line[1])
     elif line[0]=='Output_Mode':
         if len(line)>1: outmode = line[1]
+        if len(line)>2: exptime = (float)(line[2])
     elif line[0]=='Output':
         if len(line)>1: outdir = line[1]
         if len(line)>2:
@@ -435,6 +439,7 @@ for i in range(0,obslength):
 if 'logf' in end:
     pos = end.index('logf')
     plparams[e1+pos] = np.log(max(errhi**2))
+    guess[e1+pos] = guess[e1+pos]
     mu[e1+pos] = np.log(max(errhi**2))
     sigma[e1+pos] = abs(mu[e1+pos])/10.
     bounds[e1+pos,0] = np.log(min(errhi**2) * bounds[e1+pos,0])
@@ -810,7 +815,7 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
         
     binmod = af.BinModel(convmod[0],newibinhi,newibinlo)
     
-    iw = [i for i in range(0,len(binmod)) if (i<polyindex and binmod[i]!=0)]
+    iw = [i for i in range(0,len(binmod)) if ((i<polyindex or polyindex==-1) and binmod[i]!=0)]
     s2 = mastererr**2 + np.exp(lnf)
     likelihood = -0.5 * np.sum( (masternorm[iw]-binmod[iw])**2/s2[iw] + np.log(2.*np.pi*s2[iw]) )
     
@@ -862,7 +867,7 @@ def lnprior(x,teff):
         radius = np.sqrt(params[b1+pos])*6.371e8
     else: radius = 11.2*6.371e8
     mass = grav*radius*radius/6.67e-8/1.898e30
-    if mass>80. or mass<minmass:
+    if mass<minmass or mass>maxmass:
         print('Mass out of Bound. Rad={0} log(g)={1} Mass={2}'.format(radius/6.371e8/11.2,np.log10(grav),mass))
         return -np.inf
 
@@ -935,15 +940,15 @@ def lnprob(x,binshi,binslo,fluxrat,frathigh):
     for i in range(0,len(ccompounds)):
         if ccompounds[i] in gases:
             j = gases.index(ccompounds[i])
-            carbon = carbon + cmult[i]*(10**params[g1+i-1]) # -1 because of hydrogen
+            carbon = carbon + cmult[i]*(10**params[g1+j-1]) # -1 because of hydrogen
     for i in range(0,len(ocompounds)):
         if ocompounds[i] in gases:
             j = gases.index(ocompounds[i])
-            oxygen = oxygen + omult[i]*(10**params[g1+i-1])
+            oxygen = oxygen + omult[i]*(10**params[g1+j-1])
     for i in range(0,len(zcompounds)):
         if zcompounds[i] in gases:
             j = gases.index(zcompounds[i])
-            metals = metals + zmult[i]*(10**params[g1+i-1])
+            metals = metals + zmult[i]*(10**params[g1+j-1])
 
     ctoo = carbon/oxygen
     fetoh = np.log10(metals/0.0196)
@@ -964,6 +969,7 @@ def lnprob(x,binshi,binslo,fluxrat,frathigh):
 # End of probability function
 
 # Set up the MCMC run
+#print('Likelihood of input parameters: {0:f}'.format(lnlike(guess,ibinhi,ibinlo,binflux,binerr)))
     
 if task=='Retrieval':
     # Used to test the serial part of the code at the command line
@@ -1020,12 +1026,21 @@ if task=='Retrieval':
     fchain.write('Mass C/O [Fe/H] Teff\n')
 
     # Actual MCMC run, and Write samples to output file
+
+    maxlikli = 0.
+    medianparams = guess
     
     i = 0
     for sample in sampler.sample(pos, iterations=nsteps):
         print('Sample: {0:d}\n'.format(i))
         coords = reader.get_last_sample().coords
         blobs = reader.get_blobs()[i]
+        likli = reader.get_log_prob()[i]
+        if max(likli) > maxlikli:
+            j = np.argmax(likli)
+            maxlikli = likli[j]
+            medianparams = coords[j]
+        print(reader.get_log_prob())
         if i%100==0 or printfull: print('Step number {0:d}'.format(i+1))
         if printfull or i>=nsteps*0.9:
             for i2 in range(0,len(coords)):
@@ -1042,6 +1057,8 @@ if task=='Retrieval':
         i = i+1
     fchain.close()
 
+    finalparams = medianparams
+    
     # End of MCMC run
 
     if parallel: pool.close()
@@ -1413,13 +1430,13 @@ if task=='Retrieval': sys.exit()
 # Set noise parameters
 noise_params = np.zeros(7)
 
-noise_params[0] = radfinal    # radius
-noise_params[1] = rstar       # R_star (R_Sun)
-noise_params[2] = dist        # Distance (pc)
-noise_params[3] = RA          # Right Ascension
-noise_params[4] = dec         # Declination
-noise_params[5] = 6500.       # T_star
-noise_params[6] = 3.0         # exposure time in hours
+noise_params[0] = radfinal      # radius
+noise_params[1] = rstar         # R_star (R_Sun)
+noise_params[2] = dist          # Distance (pc)
+noise_params[3] = RA            # Right Ascension
+noise_params[4] = dec           # Declination
+noise_params[5] = 6500.         # T_star
+noise_params[6] = exptime/3600. # exposure time in hours
 
 noisemode = -1
 

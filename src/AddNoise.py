@@ -55,10 +55,16 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
 
     for i in range(0,len(mod_flux)):
         planet_flux[i] = (float)(mod_flux[i])/pi*omega_planet  # multiply by solid angle
-        
+
+    print("Flux\n")
+    print(mod_flux[-10:])
+    print(omega_planet)
+    print(planet_flux)
     received_flux = planet_flux                  # actual flux density (erg/s/cm^2/Hz) at the telescope
+    planet_flux = planet_flux/c/uwave/uwave      # convert cm^-1 to Hz^-1
     planet_flux = planet_flux/(h*c*uwave)        # divide by photon energy
     planet_flux = planet_flux*2.5e5              # multiply by collecting area
+    print(planet_flux)
     # this should be received flux in \gamma s^-1 aperture^-1 Hz^-1
 
     if(starspec==''):
@@ -285,6 +291,8 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
         if obstype==2:
             flux_signal = flux_star  # \gamma s^-1 aperture^-1 Hz^-1
             flux_noise = zodi
+        print(flux_signal)
+        print(bandwidth)
         
         electron_signal = flux_signal * xthruput  # e- s^-1 Hz^-1
         electron_noise = flux_noise * xthruput
@@ -297,8 +305,15 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
         #flux_density = bandwidth * flux_density       # Was meant to return flux per bin, replaced by flux per unit wavelength.
         # end observe.pro
 
-        signal_electrons = 3600.*ntran*duration*fil.effic*electron_signal  # e- exposure^-1 bin^-1        
+        signal_electrons = 3600.*ntran*duration*fil.effic*electron_signal  # e- exposure^-1 bin^-1
+        #print(signal_electrons)
+        
         noise_electrons = np.sqrt(3600.*ntran*duration*fil.effic*2.0*(electron_signal+electron_noise))
+        #print(noise_electrons)
+
+        print("Electrons\n")
+        for i in range(0,len(signal_electrons)):
+            if i%100==0: print(signal_electrons[i]/noise_electrons[i])
         
         real_signal = 3600.*ntran*duration*fil.effic*electron_signal
         real_noise = noise_electrons/real_signal
