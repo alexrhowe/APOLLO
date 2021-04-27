@@ -10,12 +10,12 @@ import emcee
 import schwimmbad
 
 import matplotlib
-matplotlib.use('pdf')
+# Used on Discover because the GUI does not work there. Comment out to use 'Manual' mode.
+#matplotlib.use('pdf')
 import matplotlib.pyplot as plt
 
 import corner
-from src import wrapPlanet_auto
-from src import wrapPlanet_layer
+from src import wrapPlanet
 from src import ApolloFunctions as af
 from src import AddNoise
 
@@ -67,12 +67,15 @@ task = 'Spectrum'    # Default: makes a spectrum plot
 if len(sys.argv)>2:
     if sys.argv[2]=='Spectrum': task = 'Spectrum'
     elif sys.argv[2]=='Retrieval': task = 'Retrieval'
+    elif sys.argv[2]=='Ensemble': task = 'Ensemble'
     else:
-        print('Error: specify "Spectrum" or "Retrieval".')
+        print('Error: specify "Spectrum" or "Retrieval" or "Ensemble".')
         sys.exit()
     
 override = False
+manual = False
 if len(sys.argv)>3 and sys.argv[3]=='Serial': override = True
+if len(sys.argv)>3 and sys.argv[3]=='Manual': manual = True
 
 try: fparams = open(settings,'r')
 except:
@@ -265,6 +268,8 @@ cnum = 0
 e1 = -1
 enum = 0
 
+ensparams = []
+
 for j in range(0,len(lines)):
     
     if str(lines[j]) == 'Basic\n':
@@ -276,7 +281,7 @@ for j in range(0,len(lines)):
         if len(lines[j].split())>1:
             gases.append(lines[j].split()[1])
         else:
-            gases.append('h2only')  # Filler gas is H2-only, may change
+            gases.append('h2he')  # Filler gas is h2+he, may get more reliable results from h2 only
     elif str(lines[j].split()[0]) == 'Atm':
         state = 2
         a1 = i
@@ -299,28 +304,29 @@ for j in range(0,len(lines)):
         sys.exit()
             
     else:
-        pnames.append(lines[j].split()[0])
+        line = lines[j].split()
+        pnames.append(line[0])
         if state==0:
-            basic.append(lines[j].split()[0])
+            basic.append(line[0])
             bnum = bnum+1
         if state==1:
-            gases.append(lines[j].split()[0])
+            gases.append(line[0])
             gnum = gnum+1
         if state==2:
-            atm.append(lines[j].split()[0])
+            atm.append(line[0])
             anum = anum+1
         if state==3:
-            clouds.append(lines[j].split()[0])
+            clouds.append(line[0])
             cnum = cnum+1
         if state==4:
-            end.append(lines[j].split()[0])
+            end.append(line[0])
             enum = enum+1
-        plparams[i] = (float)(lines[j].split()[1])
-        guess[i]    = (float)(lines[j].split()[1])
-        mu[i]       = (float)(lines[j].split()[2])
-        sigma[i]    = (float)(lines[j].split()[3])
-        bounds[i,0] = (float)(lines[j].split()[4])
-        bounds[i,1] = (float)(lines[j].split()[5])
+        plparams[i] = (float)(line[1])
+        guess[i]    = (float)(line[1])
+        mu[i]       = (float)(line[2])
+        sigma[i]    = (float)(line[3])
+        bounds[i,0] = (float)(line[4])
+        bounds[i,1] = (float)(line[5])
 
         if sigma[i] > 0.:
             pvars.append(plparams[i])
@@ -338,15 +344,17 @@ for j in range(0,len(lines)):
             if bounds[i,0] < minP: bounds[i,0] = minP
             if bounds[i,1] > maxP: bounds[i,1] = maxP
             
-        if lines[j].split()[0]=='gamma':
+        if line[0]=='gamma':
             smooth = True
             igamma = j
+        if len(line)>6 and line[6]=='Ensemble':
+            ensparams.append(i)
         i = i+1
 
 ndim = len(nvars)
 
 if gray: gases = []
-elif gases==[]: gases = ['h2only']
+elif gases==[]: gases = ['h2he']
 
 if nwalkers==0: nwalkers = ndim*8            # Default number of walkers
 if nwalkers<2*ndim: nwalkers = ndim*2 + 2    # Minimum number of walkers
@@ -531,12 +539,19 @@ nband = len(bandhi)
 # Convolve the observations to account for effective resolving power or fit at lower resolving power
 convflux,converr = af.ConvBands(bandflux,banderr,dataconv)
 
-# Bin the observations to fit a lower sampling resolution
-binhi,binlo,binflux,binerr = af.BinBands(bandhi[0],bandlo[0],convflux[0],converr[0],databin)
-binlen = len(binflux)
-binmid = (binhi+binlo)/2.
+bandhifl = [item for sublist in bandhi for item in sublist]
+bandlofl = [item for sublist in bandlo for item in sublist]
+convfluxfl = [item for sublist in convflux for item in sublist]
+converrfl = [item for sublist in converr for item in sublist]
 
-totalflux = np.sum(binflux*(1./binhi - 1./binlo))
+# Bin the observations to fit a lower sampling resolution
+binhi,binlo,binflux,binerr = af.BinBands(bandhifl,bandlofl,convfluxfl,converrfl,databin)
+binlen = len(binflux)
+binmid = np.zeros(len(binhi))
+for i in range(0,len(binhi)): binmid[i] = (binhi[i]+binlo[i])/2.
+
+totalflux = 0
+for i in range(0,len(binflux)): totalflux = totalflux + binflux[i]*(1./binhi[i]-binlo[i])
 
 # Handle bands and optional polynomial fitting
 bindex, modindex, modwave = af.SliceModel(bandhi,bandlo,modwave)
@@ -574,7 +589,7 @@ else:
     
 # End of band handling
 
-if task=='Spectrum': modwave = opacwave
+if task=='Spectrum' or task=='Ensemble': modwave = opacwave
 
 # Get indices of the edges of the observation bins in the model spectrum
 bins = af.GetBins(modwave,binhi,binlo)
@@ -599,22 +614,75 @@ if atmtype == 'Parametric' and natm != 5:
     sys.exit()
 
 # Create Planet and read in opacity tables
-if atmtype == 'Layers':
-    planet = wrapPlanet_layer.PyPlanet()
-if atmtype == 'Parametric':
-    planet = wrapPlanet_auto.PyPlanet()
-
+planet = wrapPlanet.PyPlanet()
 print('Haze type:',hazestr)
 print('Cloud model:',cloudmod)
 mode = int(mode)
 cloudmod = int(cloudmod)
 hazetype = int(hazetype)
-switches = [mode,cloudmod,hazetype,streams]
+
+atmmod = 0
+if atmtype=='Layers': atmmod = 0
+if atmtype=='Parametric': atmmod = 1
+
+switches = [mode,cloudmod,hazetype,streams,atmmod]
 
 guess  = guess[nvars]
 mu     = mu[nvars]
 sigma  = sigma[nvars]
 bounds = bounds[nvars]
+
+if task=='Ensemble':
+
+    esize = 1
+    enstable = []
+    n=0
+    for i in ensparams:
+        epmin = bounds[i,0]
+        epmax = bounds[i,1]
+        estep = sigma[i]
+        enum = int((epmax-epmin)/estep)+1
+        esize = esize*enum
+        enstable.append([])
+        for j in range(0,enum):
+            epoint = epmin + j*estep
+            enstable[n].append(epoint)
+        n=n+1
+        
+    if esize>1000:
+        prompt = input('Warning: this ensemble is more than 1,000 entries and may take significant time. Continue? (y/n): ')
+        while not (prompt=='y' or prompt=='Y'):
+            if prompt=='n' or prompt=='N':
+                sys.exit()
+            else:
+                prompt = input('Error. Please type \'y\' or \'n\': ')
+    elif esize>10000:
+        print('Error: this ensemble is more than 10,000 entries and may require several hours and several GB of memory. Please use a smaller ensemble.')
+        print('If you wish to continue with this ensemble, comment out this warning in the source code.')
+        sys.exit()
+    print('Ensemble size: {0:d}'.format(esize))
+
+    eplist = np.zeros((esize,len(plparams)))
+    for i in range(0,esize):
+        eplist[i] = plparams
+        eindices = []
+        n = i
+        for j in range(0,len(enstable)):
+            k = n%len(enstable[j])
+            n = int(n/len(enstable[j]))
+            eindices.append(k)
+            
+        for j in range(0,len(eindices)):
+            eplist[i][ensparams[j]] = enstable[j][eindices[j]]
+    
+    foutnamee = 'modelspectra' + outfile + 'ensemble.dat'
+    fout = open(foutnamee,'w')
+
+    for i in range(0,len(ensparams)):
+        fout.write('     {0:s}'.format(pnames[ensparams[i]]))
+        for j in range(0,esize):
+            fout.write(' {0:f}'.format(eplist[j][ensparams[i]]))
+        fout.write('\n')
 
 # Halt before the C++ code for testing purposes.
 #sys.exit()
@@ -740,8 +808,16 @@ def GetModel(x):
             # Compute spectrum
             planet.set_Params(params1,abund,tpprof)
             specflux = planet.get_Spectrum()
-
+            
     teff = planet.get_Teff()
+    if task!='Ensemble': print('Teff: ',teff)
+    '''
+    figtest = plt.figure()
+    ax = figtest.add_subplot()
+    ax.plot(modwave,specflux)
+    plt.savefig('plots/test.png')
+    sys.exit()
+    '''
     return specflux
 
 # End of GetModel function
@@ -752,7 +828,7 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
     params = plparams
     for i in range(0,len(nvars)):
         params[nvars[i]] = x[i]
-
+        
     modflux = GetModel(params)
     
     theta_planet = 0.
@@ -796,13 +872,13 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
     # Adjust for wavelength calibration error
     newibinhi = ibinhi + delibinhi*deltaL
     newibinlo = ibinlo + delibinlo*deltaL
-
+    
     # Bin and normalize spectrum
     if norm:
         normspec = af.NormSpec(modwave,fincident,snormtrunc,enormtrunc)
     else:
         normspec = fincident
-
+        
     # Normalize if no radius was given
     if norad:
         normspec = normspec * totalflux/np.sum(normspec)
@@ -813,11 +889,16 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
     for i in range(0,len(modindex)):
         convmod.append(af.ConvSpec(normspec[modindex[i][0]:modindex[i][1]],binw))
         
-    binmod = af.BinModel(convmod[0],newibinhi,newibinlo)
+    convmodfl = [item for sublist in convmod for item in sublist]
+    binmod = af.BinModel(convmodfl,newibinhi,newibinlo)
     
     iw = [i for i in range(0,len(binmod)) if ((i<polyindex or polyindex==-1) and binmod[i]!=0)]
-    s2 = mastererr**2 + np.exp(lnf)
-    likelihood = -0.5 * np.sum( (masternorm[iw]-binmod[iw])**2/s2[iw] + np.log(2.*np.pi*s2[iw]) )
+    s2 = np.zeros(len(mastererr))
+    for i in range(0,len(mastererr)): s2[i] = mastererr[i]*mastererr[i] + np.exp(lnf)
+    likelihood = 0
+    for i in iw:
+        likelihood = likelihood + (masternorm[i]-binmod[i])**2/s2[i] + np.log(2.*np.pi*s2[i])
+    likelihood = likelihood * -0.5
     
     if(np.isnan(likelihood) or np.isinf(likelihood)):
         print("Error: ")
@@ -970,9 +1051,68 @@ def lnprob(x,binshi,binslo,fluxrat,frathigh):
 
 # Set up the MCMC run
 #print('Likelihood of input parameters: {0:f}'.format(lnlike(guess,ibinhi,ibinlo,binflux,binerr)))
+
+# I have no idea why, but the first time GetModel() runs, it spits out a blackbody spectrum.
+# This is "burn-in" step to avoid that and should not be commented out or removed.
+testspectrum = GetModel(plparams)
+
+if task=='Ensemble':
+
+    print(eplist)
+    print(len(eplist))
     
+    allspec = np.zeros((len(eplist),len(modwave)))
+    for ii in range(0,len(eplist)):
+        print('Model #{0:d}'.format(ii))
+        radfinal = 11.2
+
+        pos = 0
+        theta_planet = 0.
+        if 'Rad' in basic:
+            pos = basic.index('Rad')
+            theta_planet = eplist[i][b1+pos]*6.371e8/dist/3.086e18
+            radfinal = eplist[i][b1+pos]
+        elif 'RtoD' in basic:
+            pos = basic.index('RtoD')
+            theta_planet = 10**eplist[i][b1+pos]
+            radfinal = 10**eplist[i][b1+pos]*dist*3.086e18/6.371e8
+        elif 'RtoD2U' in basic:
+            pos = basic.index('RtoD2U')
+            theta_planet = np.sqrt(eplist[i][b1+pos])*6.371e8/dist/3.086e18
+            radfinal = np.sqrt(eplist[i][b1+pos])
+        else:
+            theta_planet = 11.2*6.371e8/dist/3.086e18
+            # Default radius = Jupiter
+
+        print(eplist[ii])
+        spectrum = GetModel(eplist[ii])
+        
+        # Multiply by solid angle and collecting area
+        fincident = np.zeros(len(spectrum))
+        if mode<=1:
+            for j in range(0,len(spectrum)):
+                fincident[j] = spectrum[j] * theta_planet*theta_planet
+                #if i==0: print "newtdepth: ",j,specwave[i],fincident[i] # print output for debugging purposes
+                # erg/s/aperture/Hz
+                # theta_planet is actually the radius/distance ratio
+                # so its square converts flux at the surface to flux at the telescope
+        if mode==2:
+            fincident = spectrum
+
+        allspec[ii] = fincident
+
+    for i in range(0,len(modwave)-1):
+        fout.write('{0:8.2f} {1:8.2f}'.format(modwave[i],modwave[i+1]))
+        for j in range(0,len(eplist)):
+            fout.write(' {0:8.5e}'.format(allspec[j][i]))
+        fout.write('\n')
+    sys.exit()
+
+# End of ensemble-specific section
+
 if task=='Retrieval':
     # Used to test the serial part of the code at the command line
+    print('Test')
     print('Likelihood of input parameters: {0:f}'.format(lnlike(guess,ibinhi,ibinlo,binflux,binerr)))
     #sys.exit()
 
@@ -1122,7 +1262,7 @@ if task=='Retrieval':
 
     baselist = ['Rad','RtoD','RtoD2U','Log(g)','Cloud_Base','P_cl','Mass','C/O','[Fe/H]','Teff']
     bnamelist = ['Radius (R$_J$)','Radius (R$_J$)','Radius (R$_J$)','log(g)','P$_{cloud}$ (bar)','Base Pressure (bar)','Mass (M$_J$)','C/O','[Fe/H]','T$_{eff}$ (K)']
-    gaslist = ['h2','h2only','he','h-','h2o','ch4','co','co2','nh3','h2s','Burrows_alk','Lupu_alk','crh','feh','tio','vo','hcn','n2','ph3']
+    gaslist = ['h2he','h2','he','h-','h2o','ch4','co','co2','nh3','h2s','Burrows_alk','Lupu_alk','crh','feh','tio','vo','hcn','n2','ph3']
     gnamelist = ['H$_2$+He','H$_2$','He','[H-]','[H$_2$O]','[CH$_4$]','[CO]','[CO$_2$]','[NH$_3$]','[H$_2$S]','[Na,K]','[Na,K]','[CrH]','[FeH]','[TiO]','[VO]','[HCN]','[N2]','[PH3]']
     bnames = []
     gnames = []
@@ -1289,83 +1429,104 @@ if task=='Spectrum':
 
 radfinal = 11.2
 
-pos = 0
-theta_planet = 0.
-if 'Rad' in basic:
-    pos = basic.index('Rad')
-    theta_planet = finalparams[b1+pos]*6.371e8/dist/3.086e18
-    radfinal = finalparams[b1+pos]
-elif 'RtoD' in basic:
-    pos = basic.index('RtoD')
-    theta_planet = 10**finalparams[b1+pos]
-    radfinal = 10**finalparams[b1+pos]*dist*3.086e18/6.371e8
-elif 'RtoD2U' in basic:
-    pos = basic.index('RtoD2U')
-    theta_planet = np.sqrt(finalparams[b1+pos])*6.371e8/dist/3.086e18
-    radfinal = np.sqrt(finalparams[b1+pos])
-else:
-    theta_planet = 11.2*6.371e8/dist/3.086e18
-    # Default radius = Jupiter
+while True:
+    pos = 0
+    theta_planet = 0.
+    if 'Rad' in basic:
+        pos = basic.index('Rad')
+        theta_planet = finalparams[b1+pos]*6.371e8/dist/3.086e18
+        radfinal = finalparams[b1+pos]
+    elif 'RtoD' in basic:
+        pos = basic.index('RtoD')
+        theta_planet = 10**finalparams[b1+pos]
+        radfinal = 10**finalparams[b1+pos]*dist*3.086e18/6.371e8
+    elif 'RtoD2U' in basic:
+        pos = basic.index('RtoD2U')
+        theta_planet = np.sqrt(finalparams[b1+pos])*6.371e8/dist/3.086e18
+        radfinal = np.sqrt(finalparams[b1+pos])
+    else:
+        theta_planet = 11.2*6.371e8/dist/3.086e18
+        # Default radius = Jupiter
     
-spectrum = GetModel(finalparams)
+    spectrum = GetModel(finalparams)
 
-# Multiply by solid angle and collecting area
-fincident = np.zeros(len(spectrum))
-if mode<=1:
-    for i in range(0,len(spectrum)):
-        fincident[i] = spectrum[i] * theta_planet*theta_planet
-        #if i==0: print "newtdepth: ",i,specwave[i],fincident[i] # print output for debugging purposes
-        # erg/s/aperture/Hz
-        # theta_planet is actually the radius/distance ratio
-        # so its square converts flux at the surface to flux at the telescope
-if mode==2:
-    fincident = spectrum
+    # Multiply by solid angle and collecting area
+    fincident = np.zeros(len(spectrum))
+    if mode<=1:
+        for i in range(0,len(spectrum)):
+            fincident[i] = spectrum[i] * theta_planet*theta_planet
+            #if i==0: print "newtdepth: ",i,specwave[i],fincident[i] # print output for debugging purposes
+            # erg/s/aperture/Hz
+            # theta_planet is actually the radius/distance ratio
+            # so its square converts flux at the surface to flux at the telescope
+    if mode==2:
+        fincident = spectrum
+        
+    if 'deltaL' in end:
+        pos = end.index('deltaL')
+        deltaL = finalparams[e1+pos]
+    else:
+        deltaL = 0.0
+        
+    # Adjust for wavelength calibration error
+    newibinhi = ibinhi + delibinhi*deltaL
+    newibinlo = ibinlo + delibinlo*deltaL        
+    binw = (newibinhi[1]-newibinhi[0])*(dataconv/databin)
+    convmod = af.ConvSpec(fincident,binw)
+    binmod = af.BinModel(convmod,newibinhi,newibinlo)
+    resid = binflux-binmod
     
-if 'deltaL' in end:
-    pos = end.index('deltaL')
-    deltaL = finalparams[e1+pos]
-else:
-    deltaL = 0.0
+    specout = 10000./binmid
+    xmin = min(specout)
+    xmax = max(specout)
+    xmin = xmin - 0.05*(xmax-xmin)
+    xmax = xmax + 0.05*(xmax-xmin)
     
-# Adjust for wavelength calibration error
-newibinhi = ibinhi + delibinhi*deltaL
-newibinlo = ibinlo + delibinlo*deltaL        
-binw = (newibinhi[1]-newibinhi[0])*(dataconv/databin)
-convmod = af.ConvSpec(fincident,binw)
-binmod = af.BinModel(convmod,newibinhi,newibinlo)
-resid = binflux-binmod
+    yref = max(max(binmod),max(binflux))
+    ymin = -0.20 * yref
+    ymax =  1.05 * yref
 
-specout = 10000./binmid
-xmin = min(specout)
-xmax = max(specout)
-xmin = xmin - 0.05*(xmax-xmin)
-xmax = xmax + 0.05*(xmax-xmin)
+    # Plot the BINNED model/retrieved spectrum against the observations.
+    
+    fig4 = plt.figure(figsize=(10,7))
+    ax = fig4.add_subplot(111)
+    plt.axis((xmin,xmax,ymin,ymax))
+    
+    plt.xlabel('$\lambda$ ($\mu$m)',fontsize=14)
+    plt.ylabel('Flux (cgs)',fontsize=14)
+    plt.tick_params(axis='both',which='major',labelsize=12)
+    
+    ax.errorbar(specout,binflux,binerr,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
+    ax.plot(specout,binmod,'-',linewidth=1,label='Retrieved Spectrum',c='b')
+    ax.plot(specout,resid+ymin/2.,'-',linewidth=1,label='Residuals (offset)',c='r')
+    ax.plot([xmin,xmax],[0.,0.],'-',c='k')
+    ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
+    
+    plt.legend(fontsize=12)
+    plt.show()
+    
+    if not manual:
+        print('Computing final outputs.')
+        break
 
-yref = max(max(binmod),max(binflux))
-ymin = -0.20 * yref
-ymax =  1.05 * yref
+    prompt = input('Do you want to compute a new spectrum (y/n)? ')
+    while not (prompt in ['y', 'Y', 'n', 'N']):
+        prompt = input('Error. Please type \'y\' or \'n\': ')
+    if prompt=='n' or prompt=='N':
+        print('Computing final outputs.')
+        break
 
+    while prompt!='Go':
+        prompt = input('Enter a parameter name and new value or type \'Go\' to compute the new spectrum: ')
+        psplit = prompt.split()
+        if prompt!='Go' and (len(psplit)<2 or psplit[0] not in pnames):
+            print('Error: invalid input.')
+        else:
+            pos = pnames.index(psplit[0])
+            finalparams[pos] = float(psplit[1])
+    
 if task=='Spectrum': outfile = '/' + name + '.Spectrum.'
-
-# Plot the BINNED model/retrieved spectrum against the observations.
-
 fig4name = 'plots' + outfile + 'binned.png'
-
-fig4 = plt.figure(figsize=(10,7))
-ax = fig4.add_subplot(111)
-plt.axis((xmin,xmax,ymin,ymax))
-
-plt.xlabel('$\lambda$ ($\mu$m)',fontsize=14)
-plt.ylabel('Flux (cgs)',fontsize=14)
-plt.tick_params(axis='both',which='major',labelsize=12)
-    
-ax.errorbar(specout,binflux,binerr,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
-ax.plot(specout,binmod,'-',linewidth=1,label='Retrieved Spectrum',c='b')
-ax.plot(specout,resid+ymin/2.,'-',linewidth=1,label='Residuals (offset)',c='r')
-ax.plot([xmin,xmax],[0.,0.],'-',c='k')
-ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
-    
-plt.legend(fontsize=12)
 fig4.savefig(fig4name)
 
 # Create an output file of the BINNED model/retrieved spectrum.

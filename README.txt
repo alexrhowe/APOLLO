@@ -1,7 +1,7 @@
 USER GUIDE TO THE APOLLO ATMOSPHERE RETRIEVAL CODE
 
-APOLLO v0.11.5 Beta
-4 December 2020
+APOLLO v0.12 Beta
+12 March 2021
 
 NOTE: this public beta is generally stable for the cases described in
 Section 2, but development is ongoing. We are running a full suite of test and
@@ -92,7 +92,7 @@ cluster, do the following (some of this may apply to your local cluster):
 
 PENDING TESTING
 
-APOLLO version 0.11.3 is a test build. v0.10.4 was verified to be accurate and
+APOLLO version 0.11.5 is a test build. v0.10.4 was verified to be accurate and
 stable with the one-stream radiative transfer algorithm for transit, secondary
 eclipse, and direct imaging; for layered and 5-parameter T-P profiles; for
 cloud-free models, an opaque cloud deck, a cloud slab of uniform particle size
@@ -771,48 +771,102 @@ the command line.
 
 TO-DO LIST
 
+Bugs and Bug Detection:
+1. The output parameter file writes deltaL twice with a parametric T-P profile.
+2. Edge effects cause errors when the specific mode is the same width as the
+   model spectrum.
+3. Check that the metallicity, etc. are being computed correctly when there
+   are fixed parameters.
+4. Handling of radius vs. area in an ensemble (and in general).
+5. Add a check to Atmosphere.cpp to ensure the absorption and scattering cross
+   section files have identical binnings. (Actually, I think I can just give
+   them different table sizes since they do get interpolated independently.)
+6. Revise the AddNoise function based on the ETC or otherwise fix the
+   inconsistencies.
+
+Pending Updates:
+7. Implement Arthur's Planet_auto_4-models_exponential.cpp.
+8. Implement Arthur's plotting of MLE values.
+9. Implement Arthur's plotting of parametric T-P profiles.
+10. Implement Arthur's contribution functions (once completed).
+
 Cosmetic:
-1. Reorganize the header file to handle public and private correctly.
-2. Consider changing some parameter names to be less confusing.
-3. Clean up JWST mode file names and add or delete appropriate files.
-4. Replace all output files with up to date versions.
+11. Reorganize the header file to handle public and private correctly.
+12. Consider changing some parameter names to be less confusing.
+13. Clean up JWST mode file names, and add or delete appropriate files.
+14. Replace all example output files with up to date versions.
+15. Update the inline documentation.
+16. Update the README file.
+17. Correct labeling of "cross section" vs. "opacity" and "aerosol" vs. "cloud"
+    or "haze".
+18. Create or modify an example file for Ensemble mode.
 
-Model details:
-5. Am I actually using the different upper and lower error bars?
-6. Do I like the "norad" normalization?
-7. Do I like the default "h2only" filler?
+Aerosol and T-P Models:
+19. Build a separate file for e.g. T-P profile functions and/or cloud functions.
+    (Or put them into Atmosphere.cpp?)
+20. Give each cloud model a name to use in the input file.
+21. Add more cloud models, especially particle size distributions.
+22. Set the cloud priors so that the cloud base cannot be deeper than the
+    maximum pressure in the model.
 
-Functionality:
-8. Add cloud models and parametric T-P profiles to Plot Apollo. Also consider
-   other useful combinations like log(g) with abundances.
-9. Add options to test for convergence on the fly for both emcee's
-   autocorrelation and an additional stopping criterion to max_steps.
-10. Add options for reflection spectra.
-11. Add an option to lnlike() to bypass the calculation of binmod and s2, and
-    call addnoise() to find goodness of fit for specific JWST modes.
-12. Implement 2-stream radiative transfer for transits.
-13. Let transits use an input stellar spectrum.
-14. Allow the default hires table setting to detect the resolution of the
+Cross Section Tables:
+23. Allow the default hires table setting to detect the resolution of the
     observations and respond appropriately.
-15. Update from Arthur's Planet_auto_4-models_exponential.cpp.
+24. Convert the cross section tables to bin files and do direct lookup of the
+    needed wavelengths.
+25. Create lo-res opacity tables suitable to be added to the Github repository.
 
-Error checking:
-16. Add a check to Atmosphere.cpp to ensure the absorption and scattering cross
-    section files have identical binnings. (Actually, I think I can just give
-    them different table sizes since they do get interpolated independently.)
-17. Consider adding more command line arguments to MakeHaze and checking for
+Input/Output:
+26. Consider adding more command line arguments to MakeHaze and checking for
     bad inputs.
-18. Edge effects cause errors when the specific mode is the same width as the
-    mode spectrum.
-19. Check that the metallicity, etc. are being computed correctly when there
-    are fixed parametres.
+27. Consider what specific mode options to include, since we don't have any
+    other observatories. Would it be better to do like the photometric one and
+    have an auxiliary input file(s)?
+28. Add flexibility to Plot Ensemble.
+29. Output both MLE and median retrieved parameters.
+30. Add an option to plot comparison or literature values to Plot Apollo.
+31. Print some of the output in LaTeX formatting?
+32. Add cloud models and parametric T-P profiles to Plot Apollo. Also consider
+    other useful combinations like log(g) with abundances.
 
-Interface:
-20. Give each cloud model a name to create a switch for them.
-21. Figure out how to run several spectra in a row from the command line in
-    the Python environment without rereading the cross section tables.
+Other Features:
+33. Add options for reflection spectra.
+34. Implement 2-stream radiative transfer for transits.
+35. Let transits use an input stellar spectrum.
+36. Am I actually using the different upper and lower error bars?
+37. Add options to test for convergence on the fly for both emcee's
+    autocorrelation and an additional stopping criterion to max_steps.
+36. Calculate BICs?
+39. Add an option to lnlike() to bypass the calculation of binmod and s2, and
+    call AddNoise() to find goodness of fit for specific JWST modes.
+40. Add parameters for flux calibration between bands?
 
 CHANGE LOG
+
+v0.12.0
+Created new 'Ensemble' operating mode, specified at the command line. This
+mode creates an ensemble of spectra varying any parameters that have the
+keyword 'Ensemble' added to the end of their line in the parameter file. This
+ensemble moves in steps of 1 standard deviation between the lower and upper
+limits for each designated parameter and outputs the spectra (without error
+bars, etc.) into a single output file. This subroutine also produces warning
+messages and continue prompts if the ensemble is >1,000 entries and halts if
+it is >10,000 entries.
+NOTE: Ensemble mode currently produces full-res spectra only--no binning or
+other post-processing.
+Added the Plot Ensemble script to visualize the ensemble results.
+Created new 'Manual' mode, specified by 'Spectrum Manual' at the command line.
+This mode allows you to recompute the spectrum using different values of the
+parameters and plots the result to the screen. Once the desired spectrum is
+found, type 'n' to exit out of Manual mode and compute the 'Spectrum' outputs
+as usual.
+NOTE: Manual mode only works if a GUI-compatible backend for Matplotlib is
+functional. This may not be the case on an ssh system, in which case a non-GUI
+backend like 'pdf' must be used.
+Changed the opacity table naming: h2only changed to h2, and h2 changed to h2he,
+to match the actual molecules used.
+Made h2he the default filler gas instead of h2 only.
+Streamlined reading in the paramater file with less use of split().
 
 v0.11.5
 Combined Planet_layer.cpp and Planet_auto.cpp into a single Planet.cpp (and the
