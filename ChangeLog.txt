@@ -1,0 +1,874 @@
+APOLLO TO-DO LIST
+
+Bugs and Bug Detection:
+1. Edge effects cause errors when the specific mode is the same width as the
+   model spectrum.
+2. Check that the metallicity, etc. are being computed correctly when there
+   are fixed parameters.
+3. Handling of radius vs. area in an ensemble (and in general).
+4. Give absorption and scattering cross sections separate table sizes.
+
+Pending Updates:
+5. Implement Arthur's Planet_auto_4-models_exponential.cpp.
+6. Implement Arthur's changes to output and plot both median and MLE values.
+7. Implement and example Arthur's addition of cloud parameters and parametric
+   T-P profiles to Plot Apollo.
+8. Implement Arthur's contribution functions (once completed).
+
+Cosmetic:
+9. Reorganize the header file to handle public and private correctly.
+10. Replace all example output files with up to date versions.
+11. Update the inline documentation and README file. (Include any NOTES from
+    the Change Log.)
+12. Revise the code for clarity: less confusing names for some parameters,
+    correct labeling of "cross section" vs. "opacity" and "aerosol" vs. "cloud"
+    or "haze".
+13. Create or modify an example file for Ensemble mode.
+
+Aerosol and T-P Models:
+14. Combine layer-by-layer and (multiple?) parametric T-P profile generation
+    functions into a single pipeline.
+15. Combine the various aerosol models into a single pipeline (with clear names
+    for each model).
+16. Add more cloud models, especially particle size distributions.
+17. Set the cloud priors so that the cloud base cannot be deeper than the
+    maximum pressure in the model.
+
+Cross Section Tables:
+18. Add an option to auto-detect the resolution of the input spectrum and
+    sample the cross section files accordingly.
+19. Convert the cross section tables to bin files and do direct lookup of the
+    needed wavelengths.
+20. Create lo-res opacity tables suitable to be added to the Github repository.
+
+Input/Output:
+21. Consider adding more command line arguments to MakeHaze and checking for
+    bad inputs.
+22. Add additional flexibility to Plot Ensemble.
+23. Add an option to plot comparison or literature values to Plot Apollo.
+24. Print some of the output in LaTeX formatting.
+25. Re-evaluate specific mode spectrum generation. Would it be better to accept
+    auxiliary input files like the photometric mode does instead of hard-coding
+    all the JWST modes. Consider what specific mode options to include, if any
+    since we don't have any other observatories. Clean up JWST mode file names,
+    and add or delete appropriate files. Revise the AddNoise function based on
+    the ETC or otherwise fix the inconsistencies.
+
+Other Features:
+26. Add options for reflection spectra.
+27. Implement 2-stream radiative transfer for transits.
+28. Let transits use an input stellar spectrum.
+29. Re-evaluate appropriate usage of separate upper and lower error bars.
+30. Add options to test for convergence on the fly for both emcee's
+    autocorrelation and an additional stopping criterion to max_steps.
+31. Implement BIC or other statistical tests.
+32. Add an option to lnlike() to bypass the calculation of binmod and s2, and
+    call AddNoise() to find goodness of fit for specific JWST modes.
+33. Add parameters for flux calibration between bands.
+
+*******************************************************************************
+
+APOLLO CHANGE LOG
+
+v0.12.0
+Created new 'Ensemble' operating mode, specified at the command line. This
+mode creates an ensemble of spectra varying any parameters that have the
+keyword 'Ensemble' added to the end of their line in the parameter file. This
+ensemble moves in steps of 1 standard deviation between the lower and upper
+limits for each designated parameter and outputs the spectra (without error
+bars, etc.) into a single output file. This subroutine also produces warning
+messages and continue prompts if the ensemble is >1,000 entries and halts if
+it is >10,000 entries.
+NOTE: Ensemble mode currently produces full-res spectra only--no binning or
+other post-processing.
+Added the Plot Ensemble script to visualize the ensemble results.
+Created new 'Manual' mode, specified by 'Spectrum Manual' at the command line.
+This mode allows you to recompute the spectrum using different values of the
+parameters and plots the result to the screen. Once the desired spectrum is
+found, type 'n' to exit out of Manual mode and compute the 'Spectrum' outputs
+as usual.
+NOTE: Manual mode only works if a GUI-compatible backend for Matplotlib is
+functional. This may not be the case on an ssh system, in which case a non-GUI
+backend like 'pdf' must be used.
+Changed the opacity table naming: h2only changed to h2, and h2 changed to h2he,
+to match the actual molecules used.
+Made h2he the default filler gas instead of h2 only.
+Streamlined reading in the paramater file with less use of split().
+Fixed a bug that caused deltaL to appear twice in the output file for a
+parametric T-P profile.
+Split the To-Do List and Change Log into a separate ChangeLog.txt file.
+
+v0.11.5
+Combined Planet_layer.cpp and Planet_auto.cpp into a single Planet.cpp (and the
+relevant header and Cython files).
+This also corrected numerous errors that were in Planet_auto.cpp, centered
+around the Teff calculation.
+
+v0.11.4
+Removed unnecessary Cython output files from the tarball.
+Fixed a bug that caused the likelihood function to return zero when not using
+polynomial fitting.
+Corrected the initial guess for logf.
+Fixed a bug that made the error bars on the JWST noise model impossibly small.
+Fixed an error in the calculation of C/O and [M/H].
+Added a maximum mass parameter.
+Added an exposure time parameter for JWST model observations.
+Added Plot.Haze.py to the package.
+
+v0.11.3
+Fixed an index error in the derived parameter calculation.
+Updated Apollo.run for the current Python environment on Discover.
+Fixed a bug that returned the wrong derived parameters due to a mismatch in the
+shapes of "chain" and "blobs".
+Removed the defunct "usebands" flag.
+Updated the documentation.
+Fixed one of the error statements in Plot Opac.
+Revised getTauProf() with correct formulas for w0 and asym and more intuitive
+calculations.
+Corrected the definition of asf in MakeHaze.
+Fixed several problems with the haze handling in Planet_layer.cpp and
+Planet_auto.cpp.
+Added the correct rstar to the specific mode plot calculation.
+Fixed several problems with the handling of lores in getFlux().
+
+v0.11.2
+Fixed an error that reversed the function of BinBands.
+Allowed Lupu_alk into longer-wavelength retrievals.
+NOTE: the Burrows_alk cross sections include zero opacity past 20 microns.
+Added a minimum mass parameter. Default: 0.5 Jupiters.
+Added a prior that requires the scale height of the atmosphere (based on T_eff)
+to be less than 0.05 times the radius. This prevents gravity from going so low
+that the code is unable to find a T-P profile that converges.
+NOTE: This prior may need to be adjusted based on testing.
+NOTE: All of the mass, radius, and gravity priors may need to be adjusted for
+"super-puff" planets that are unusually low-density.
+Tested the 2-stream T_eff calculation.
+Added the functionality to fix the value of any input parameter by setting
+sigma = 0.
+Fixed a fencepost error with the abundance array.
+Updated and verified the functionality of all of the plots.
+Added the wavelength calibration parameter back into the spectral plots.
+Changed the names of the specific JWST modes to the correct grism+filter
+combinations.
+NOTE: slashes are replaced with hyphens and spaces with underscores.
+Cleaned up the JWST mode plot and fixed the normalization.
+Made the JWST mode plot compute the full-width spectrum so that all of the JWST
+modes will be covered.
+NOTE: this is now limited to Spectrum mode only because Retrieval mode doesn't
+compute the full opacity table for efficiency.
+Added the correct Right Ascension and Declination into the JWST mode calculator.
+Fixed the normalization of the spectrum plots.
+Changed the specific mode names to the correct JWST gratings and filters.
+Restored the functionality for an empty parameter file.
+NOTE: Retrieval mode does not work without at least one variable parameter.
+Fixed a bug that set nsteps wrong in Serial mode if it wasn't in the input file.
+Fixed the plotting of the derived parameters in the waterfall plot.  (I think
+this went wrong because I copied it from Plot Apollo, which works differently.)
+Made sure the plotting functions execute with a nearly-empty input file.
+NOTE: The plots may look weird or empty is one or more blocks is empty.
+Cleaned up and updated the output parameter file.
+Converted the remaining .py files to be Python 3 compatible.
+Updated transFlux to work with the lores table.
+Fixed a bug in transTauProf and updated it to work with the lores table.
+Moved databin and dataconv to separate lines in the input file.
+Allowed the 'Polyfit' and 'Bands' flags to be in either order.
+Clarified the usage of the 3 degrading parameters.
+Changed the list order of the parameters and matched the example files to it in
+order to make it a more logical progression.
+Updated the example files.
+Removed unused variables from the C++ files.
+Removed unused variables from the header files.
+Tightened up and clarified the default hires table setting.
+Trimmed the ends of the input spectrum if it goes outside the hires table.
+Switched to astropy's "convolve" function, which handles boundaries better than
+numpy's function.
+Removed the now-defunct "fixed abunds" code.
+Cleaned up the comments.
+Removed Makespectrum from the .tar file.
+Removed the defunct "Spectrum" parameter.
+
+v0.11.1.1
+Updated Apollo.run to work with the new Python environment on Discover.
+Fixed the calls to binBands, binModel, and get_Teff with the correct parameters
+for the new formats.
+Fixed the importation of the MPIPool.
+Fixed the order of imports.
+Changed the default alkalis in the example files to Lupu_alk.
+Fixed a bug in the handling of the radius in the plotting section.
+Fixed a bug in the specific mode plotting setup.
+
+v0.11.1
+Updated the SLURM run file for the new login server.
+Fixed a bug in that caused the waterfall plotting in APOLLO to fail to read the
+derived parameters.
+Added databin and dataconv to the output parameter file (rather than setting
+then to 1).
+Changed the output filenames in Spectrum mode to prevent overwriting Retrieved
+mode results.
+Added the hires and lores tables to the output parameter file.
+Fixed a bug that overrode the hires parameter in the input file.
+Incorporated Arthur Adams's edits to allow for fixed gas abundances that are
+not retrieved upon.
+Fixed some missed variable name changes.
+Incorporated Arthur Adams's edits to include separate absorption and scattering
+cross sections for aerosols.
+Added the "streams" variable to the "switches" array, per Arthur Adams.
+Fixed the "watercirrus" and "waterice" aerosol names.
+Corrected a bug that made the plotting program not use the full chain in Serial
+mode.
+Upgraded from emcee v2 to emcee v3.
+At some point, I futurized all the print statements, but I don't remember doing
+it. This should still work with both Python 2 and Python 3.
+Fixed a bug that used the wrong radius in some cases for the spectrum plots.
+Added basic garbage collection to reading in the opacity files.
+Removed "streams" as a function parameter.
+Added the "Star_Spec", "Spectrum", and "Output_Mode" input parameters from
+Makespectrum to APOLLO.
+NOTE: "datain" replaced "obsfile".
+NOTE: "outmode" is used for the specific JWST mode plots, not yet implemented.
+Modified MakeHaze to compute all three haze tables more easily.
+Reduced the command line arguments for MakeHaze to just opacities directory and
+haze name.
+Implemented Arthur Adams's "absorption", "scattering", and "asymmetry"
+subdirectories in "Opacities."
+Moved the molecular cross sections to a "gases" subdirectory in "Opacities."
+Moved the incides of refraction to an "indices" subdirectory in "Opacities."
+The commented-out "exit" command before the Planet object is created
+disappeared at some point. I added it back in.
+Switched the order of the dataconv and databin parameters in the input file to
+reflect the order in which they're used in the code.
+Completely rebuilt the band handling to be simpler and more effective. The code
+will not automatically detect discrete bands in the observations, separate
+them, and individually convolve and bin them before reassembling them. It will
+also compute the model spectrum in these bands only to save time and will
+continue to do polynomial fitting when required.
+Removed the "usebands" parameter, as it will now be done automatically.
+Reorganized the To-Do List.
+Fixed a bug that caused readopac to fail to read the header line of the
+opacity files in some instances.
+Got the polynomial fitting working with the new system.
+Incorporated the specific mode plotting from Makespectrum. It currently does
+not work because 
+
+v0.11.0
+Heavy overhaul of the main code to fix the convolution and binning system,
+simplify the code structure, and reconcile several different builds currently
+in use.
+Moved the non-MCMC functions at the beginning of the code to a separate file,
+ApolloFunctions.py.
+Split the likelihood function into two functions, one to compute the forward
+model spectrum and one to compute the likelihood. This removes the need for
+separate APOLLO and Makespectrum codes.
+Removed the Apollo.Makespectrum.py code and incorporated its functionality
+into APOLLO with the 'Spectrum' command line argument.
+Added the required 'Retrival' command line argument to do retrievals. (Default:
+'Spectrum'.)
+Added functionality for APOLLO to automatically plot the best fit spectrum
+along with the other plots.
+Replaced the various instances of binning and interpolating spectra with the
+correct procedure of convolving the spectrum to the desired resolving power,
+then binning it to the desired sampling resolution, which may be different.
+Changed a lot of the variable names to make more sense and be more consistent
+in context.
+Fixed a bug where the Teff calculation would use the hi-res opacity tables.
+Updated the Readme file.
+
+v0.10.5
+Changed the T_eff calculation to use the algorithm specified in the input file
+instead of automatically 1-stream. (It had been that way for speed, but this
+was not needed.)
+Changed the 2-stream calculation with an opaque cloud deck to split the layer
+in which the cloud tops reside--setting the temperature of the "bottom" layer
+equal to T(hmin) and scaling the optical depth to the fraction of the layer
+above the cloud tops.
+
+v0.10.4.4
+Corrected a couple of array sizes in Planet_auto.cpp.
+Modified the getProfile subroutine in Planet_layer.cpp to cut off the planet's
+radius at 5 R_J if low surface gravity makes the profile fail to converge.
+Made minor corrections to the Emcee 3 conversion.
+
+v0.10.4.3
+Completely rewrote the GetScaOpac subroutine to include he, h-, h2s, hcn, n2,
+and ph3, to make it simpler overall, and to make it easier to add new
+molecules. Verified outputs.
+NOTE: h2 and h2only have molecular weights that differ by 15%, which may affect
+the retrievals.
+
+v0.10.4.2
+Changed wavelength to wavenumber in the specific mode output file of
+Makespectrum.
+Wrote the "Streams" parameter correctly in the output parameter file.
+Changed the "binned" spectrum in Makespectrum from interpolating to actually
+binning.
+Added the wavelength offset to the binned spectrum and specific mode plots in
+Makespectrum. (Not the fullres.)
+Corrected the mean molecular weight for h2only, h2, and he filler gases.
+Corrected the labelling of the base pressure in the waterfall plot.
+Prevented the imin, imax, etc. arrays from going outside the limits of specwave
+due to rounding errors.
+
+v0.10.4.1
+Corrected the right ascension in the output file.
+Fixed the handling of mu for the cloud deck.
+Removed extraneous print statements from Planet_layer.cpp.
+Removed the logbeta line from examples.resolved.dat.
+Removed the wrong definition of wstart from Planet_layer.cpp.
+Fixed several problems in the 2-stream radiative transfer algorithm.
+
+v0.10.4
+Added the parameter name to the "Out of Bound" message.
+Fixed a bug in setting the bounds on the opaque cloud deck level.
+Corrected reading of the filler gas.
+Clarified the "Mass out of Bound" message and removed the blank line.
+Fixed the formula for the smoothness prior, more strongly penalizing large
+values of gamma.
+Fixed a bug that caused the walkers to get stuck for parameters where the
+initial guess is zero.
+Fixed a bug that was failing to account for the wavelength offset.
+Fixed a bug that specifically set the wavelength offset to zero.
+Changed the headers in the opacity files from millibars to bars.
+Cleaned up the distinction between the cloud deck bounds and the integration
+range.
+Cleaned up the conversion from bars to cgs.
+Allowed the cloud deck pressure level to be in both "Basic" and "Clouds".
+NOTE: The declaration in "Clouds" overrides "Basic".
+Added the opaque cloud deck to the two-stream calculation.
+Fixed a bug in the data binning that was causing bins to stretch across gaps
+between bands.
+Fixed a bug that made the error bars on binned data too large.
+Fixed a bug in the data binning that wrongly divided the flux by the bin width.
+Added the code to better handle the wavelength bins at the ends of bands to
+APOLLO from Makespectrum.
+Made some minor improvements to the documentation.
+Corrected right ascension handling in APOLLO.
+Corrected minimum pressure handling in Makespectrum.
+
+v0.10.3
+Added the filler gas to the new input file produced by APOLLO.
+Cleaned up and greatly simplified the spectroscopic mode calculation in Apollo
+Makespectrum.
+Added a plot of the spectroscopic mode to Apollo Makespectrum.
+Added the remaining JWST modes to Makespectrum.
+Added a check in Makespectrum to ensure the spectroscopic modes match the
+computed wavelengths.
+Fixed a bunch of problems related to getting the spectroscopic modes to work
+right.
+Simplified the handling of the specwave array in Makespectrum.
+Harmonized the GetBins and GetBinnedSpec routines in APOLLO and Makespectrum.
+Removed the minimum mass from the internal mass prior.
+Changed the standard log(g) limits in the example files to 2.0 and 6.0. This
+may exclude some "super-puffs" but will otherwise include all currently
+observable planets without being unnecessarily wide.
+Clarified the h- label on the command line when reading opacity tables.
+Fixed a bug that caused the effective temperature calculation to crash with
+cloud models 2 and 3.
+Added an option to discard wavelengths between observation bands to reduce run
+times. (Does not work together with the polynomial fitting.)
+
+v0.10.2.1
+Fixed the labeling of the x-axis in Plot Opac.
+Fixed the Lupu_alk opacity files and verified them.
+
+v0.10.2
+Added the Plot Opac script to plot cross sections to check for differences.
+Added documentation for Plot Opac.
+Added the Output_Mode parameter that specifies a JWST mode or a filter function
+for which to compute a spectrum or flux.
+Updated and tested the JWST mode calculations in Makespectrum.
+Tweaked the labelling in the spectrum fit plot.
+Revised the To-Do list.
+Recorded derived parameters for all samples, not just those with nonzero
+probability.
+Included all samples after the burn-in in the waterfall plots, correcting the
+previous incorrect method.
+Changed the radius output from Earth radii to Jupiter radii.
+Corrected the notes on blob handling.
+Added a section to Plot Apollo to print the uncertainties for the derived
+parameters.
+Added a "confidence interval" command line parameter to Plot Apollo.
+Added "binned" and "fullres" spectrum files and best fit plots to the tar
+archive.
+Updates examples files with the "Opacities" parameter.
+Added new Lupu_alk opacity tables (though still not fully verified).
+
+v0.10.1
+Finished a few missing haze cross section tables.
+Added the pressure profile to the samples output file for layered T-P profiles
+to allow them to be plotted correctly in Plot Apollo.
+Heavy overhaul of the plotting subroutines in APOLLO to improve the waterfall
+plots.
+The probability function now computes the mass, C/O ratio, metallicity, and
+temperature of the planet on the fly and passes them to the sampler as a blob.
+The "Basic" waterfall plot now includes the four derived quantities with
+correct labels. The "Gases" plot also has corrected labels.
+Harmonized the plotting functions in Plot Apollo with those in APOLLO and
+Makespectrum.
+Added material to the README file about the various configurations needed to
+run APOLLO on a cluster.
+Modified the spectral fit plots to draw the observations as points with error
+bars on top of the computed spectrum.
+Created separate plots for the full-resolution computed spectrum and the
+spectrum binned to the observations.
+Added an option to choose a filler gas.
+Set the limits in the corner plots to 99% confidence levels to cut out
+outliers.
+Corrected the hydrogen scattering opacity.
+Fixed a bug that prevented the gas list from being passed to the Planet object
+correctly.
+Made the opacity table read-in subroutine print full filenames instead of
+species.
+Verified that the output of the code is identical to version 0.9.x when the
+same format of opacity tables is used.
+Added notes to the README file that include how to switch between Emcee 2 and
+Emcee 3.
+
+v0.10
+Heavy overhaul of the opacity managing system with four sets of opacity tables:
+1. NIR tables (nir), 0.6-5.0 microns at R=10000
+2. MIR tables (mir), 5.0-30.0 microns at R=10000
+3. Wide tables (wide), 0.6-30.0 microns at R=10000
+4. Lo-res tables (lores), 0.6-30.0 microns at R=200, used to calculate
+   effective temperature from bolometric flux.
+APOLLO now reads in two sets of tables: the lo-res tables for effective
+temperature, and automatically selecting the appropriate tables for the
+spectral retrieval. The lo-res tables have been designed so that they add about
+10% to the workload on a typical ground-based (e.g. JHK) spectrum.
+This means that while APOLLO computes a hi-res spectrum over only the
+wavelength range of the observations, it automatically computes a lo-res
+spectrum over the full 0.6-30 micron range.
+Effective tempearture is always computed with one stream.
+The hi-res and lo-res tables must have the same dimensions in temperature and
+pressure (as well as all molecules within each set).
+The haze opacity is interpolated automatically instead of read directly from
+the (internal) table, so it always uses the hi-res tables.
+The new tables also extend to 4000 K instead of 3500 K.
+The opacity tables now include a header listing the size and limits of the grid
+in pressure, temperature, and wavelength space (assuming all of them are
+logarithmically distributed).
+Added H2-only, He, HCN, N2, and PH3 to the list of supported molecules.
+The standard "h2" opacity tables are now H2+He instead of H2-only.
+Added Mass, C/O, [Fe/H], and the corrected Teff to the "basic" waterfall plots
+in Plot Apollo (direct APOLLO plots pending).
+Fixed a bug that set the radius wrong in the best fit output file.
+Increased the number of steps to 11 in Serial mode in case of rounding errors
+to ensure that some samples output is produced.
+Removed the "Spectrum" setting and wrange variable, which are replaced by the
+new system.
+Combined the integer "switch" parameters for MakePlanet into a single int array
+argument.
+Made the "Serial" override set printfull to True.
+Stopped printing "Out of Bound" statements for the statistical "End" parameters
+to make the output less unwieldy.
+Set the default number of steps in Serial mode to 2. With printfull set to
+True, this is all that is needed for testing.
+Added gamma into the best fit output file where it had been previously omitted.
+Added the C++ cutoff switch to Makespectrum.
+Excluded samples that were out of bounds from the waterfall plots.
+NOTE: This may not be the correct way to do it. I just needed to do it to
+remove nonphysical Teff calculations. The full samples are still computed as
+intermediate products. EDIT: It was wrong and has been changed in v0.10.2.
+Cleaned up the output from the likelihood function test in APOLLO.
+Added another cutoff switch to APOLLO, which causes it to test the likelihood
+function once and then halt.
+Reset the statistical "End" parameters in the best fit output file because the
+parameters found by emcee prevented it from running. (Reason unknown. There
+might be a stray log somewhere.)
+
+v0.9.13.2
+Cleaned up maketar.sh to prevent it from including extra files.
+Corrected the H2 scattering cross section in Makespectrum.
+Fixed the alkali metal opacities, which were wrongly multiplied by 10,000.
+Removed the effective temperature calculation because it was a shortcut that
+didn't work. A script to compute it correctly from the luminosity is pending.
+Verified that the fencepost error in gamma appears to have resolved the hot top
+of the atmosphere problem.
+Fixed a couple bugs in the best fit output format.
+Fixed a bug in the TP profile plotting in Plot Apollo.
+Removed the minus sign in the best fit output format.
+Fixed the order of indices in Plot Converge.
+Changed the output of APOLLO to list the number of steps actually recorded in
+the samples file. (This makes the Plot programs work better.)
+Changed Plot Apollo to match the new format.
+Corrected the labelling in Plot Apollo.
+
+v0.9.13.1
+Changed number of walkers to account for adding Teff to the table.
+Added the parameter list to the samples file produced by APOLLO.
+Made APOLLO create a new input file with the best fit parameters.
+Added an option to print the full sample array instead of the last 10%.
+Added code to Plot Apollo to print waterfall plots and improved the interface.
+Added a line in the input file to specify the Opacities directory instead of
+hard-coding it.
+Added the Opacities directory to the arguments for MakeHaze.
+Added the Plot Converge script to troubleshoot the movement of the walkers.
+Modified APOLLO to print to the sample file step-by-step instead of all at once
+to print partial data if a run crashes.
+Used emcee blobs to correct and simplify the handling of Teff.
+Corrected the handling of the radius prior.
+Allowed the "Short" output flag to be in any position in Makespectrum.
+Updated and cleaned up the README file.
+Fixed a bug that caused walkers to initialize with gamma being too large.
+Corrected the upper bound on gamma from 1 to 1000.
+Corrected the header of the samples output file.
+Corrected the radius handling in Plot Apollo and the waterfall plot in APOLLO
+so that it uses the radius in Earth radii and not the cross section.
+
+v0.9.13
+Fixed a bug in the h-minus handling.
+Added a switch to turn the polynomial fitting on and off.
+Warning: polynomial fitting and binning of observations will not work at the
+same time.
+Changed the code to use a spectrum truncated by the extreme wavelength of the
+observations so that the wavelength bins do not have to be in order for a
+non-normalized spectrum.
+Fixed a major bug in how the polynomial fitting is handled related to passing
+it to the Planet object.
+Streamlined the polynomial fitting process in general.
+Created "short" versions of the eclipse and transit observation files that fall
+entirely within the NIR range, and changed the example input files to match.
+Fixed a bug that was causing the code not to evalute all of the observations if
+they were out of order.
+Made the code able to accept arbitrary observations and ignore those that are
+outside of the model's wavelength range.
+Changed the model binning to actual binning instead of just interpolation.
+Added new and updated Rayleigh scattering cross sections.
+Removed the extraneous GetFluxPerBin subroutine.
+Changed the transit and eclipse examples back to the regular observation files.
+
+v0.9.12.1
+Fixed a bug that caused a crash when databin is set to 1.
+Corrected output directory in example files.
+Commented out print statements in the spectrum calculation loop to make the
+output less unwieldy.
+Fixed several bugs in the plot generation in APOLLO.
+Verified APOLLO end to end in serial operation.
+Fixed a fencepost error in the index for gamma.
+Verified the observation binning.
+Fixed an error in the output file names in Makespectrum.
+Verified the short filenames.
+Fixed a wavelength-wavenumber mismatch in the noise model.
+Fixed output for the JWST modes.
+Verified input stellar spectrum functionality.
+Updated addNoise function calls in Makespectrum.
+Added an example photometric filter option to Makespectrum with the
+corresponding thruput function in the Filter directory.
+Fixed a bunch of stuff to make the photometric filters work right.
+Verified MIR functionality.
+
+v0.9.12
+Enhanced the code to work on MIR data (5-28 microns).
+Added new MIR opacity tables for gases and aerosols.
+Note: only uses one set of tables at a time. Automatically removes alkalis
+from MIR calculations because the tables don't go that far.
+Corrected documentation of the spectrum file format.
+Added an optional parameter to import a stellar spectrum to the noise model.
+Added an option to create short output file names.
+Added an optional paramter to call AddNoise for a photometric filter with mode
+number -1 and an optional parameter for the filter throughput file (required
+for this mode). Returns the central frequency, flux, and noise for the whole
+filter.
+Created a source code directory.
+Created a directory for the example files.
+Corrected the example files to reflect the change in directory.
+
+v0.9.11.1
+New version to work on new computer and cluster at GSFC, and other updates.
+Added bound-bound and bound-free H-minus opacity.
+Modified setup.py to use the gcc-mp-9 and g++-mp-9 compilers used at GSFC.
+Began working on Python 3 compatibility. Used futurize on Apollo.py, but it
+appears that only the print statements have changed.
+Fixed a fencepost error in defining the master opacity table.
+Fixed a bug that was causing Teff to evaluate to zero.
+Added the Plot.Apollo.py script, which bins and plots a retrieved spectrum
+against observations.
+Added the code for Plot.Apollo.py to Apollo Makespectrum.
+Commented out the JWST filters in Apollo Makespectrum.
+Added code for APOLLO to automatically create waterfall plots and a plot of
+the T-P profile.
+Added an option to APOLLO to bin down the observations.
+Changed output file names to work in the new system and to be cleaner.
+Updated example files.
+Made MakeHaze able to take input and output files as command line arguments.
+
+v0.9.11
+Changed the hard-coded Opacities directory to match the cluster.
+Removed defunct and unnecessary lines from the example files.
+Specified cloud model 2 in the example files.
+Added right ascension and declination to the example files, changing the
+"Distance" line to "Location."
+Updated the README file.
+
+v0.9.10
+Added a gaussian function to constants.cpp.
+Changed the number of cloud parameters to a numerical cloud model in the input
+file format.
+Implemented a gaussian cloud profile model.
+Fixed a bug in the haze opacity calculation in getTauProf.
+Completely rebuilt the polynomial normalization based on experiments on the
+Flux cluster.
+Fixed various mistakes along the way.
+Cleaned up the outputs throughout.
+Made the section header comments more informative.
+Made some of the error messages more informative.
+Rearranged a few lines to better harmonize APOLLO and Makespectrum.
+Changed the output of APOLLO to only output the last 10% of the length of the
+chain to reduce file sizes. (The original is left, but commented out.)
+
+v0.9.9
+Limited ability of haze calculation to go outside the size range due to the
+granularity of the table.
+Fixed a bug in the haze calculation that caused a crash in the cloud layer was
+narrower than one layer in the T-P profile.
+Changed the haze in the example files from tholin to enstatite.
+Fixed some format problems with the indicies of refraction files.
+Doubled the width and resolution in particles size of the haze opacity tables.
+Made changes to Atmosphere.cpp to prevent crashing due to rounding errors.
+Added more decimal places to haze opacity tables to prevent rounding errors.
+Added automatic flux normalization if no radius variable is included in the
+input file
+Added an option for polynomial continuum normalization.
+Updated the README file with the current input format.
+Added another tweak to Atmosphere.cpp to prevent crashing due to rounding
+errors in the interpolation.
+
+v0.9.8
+Fixed handling of the gray atmosphere in Makespectrum.
+Repaired the functionality of a parametric T-P profile in transit.
+Removed a test output filename that I kept forgetting to remove.
+Fixed a bug that caused an error if the pressure limits were too wide.
+Updated example files without the Hazetype line.
+Added an example file for transits with a parametric T-P profile.
+Fixed a bug in getH that broke Planet_auto.cpp.
+Fixed the noise models for eclipse and transit.
+Harmonized minor differences between Planet_layer.cpp and Planet_auto.cpp.
+Fixed handling of gray boolean input parameter.
+Adjusted T-P profile to correct for variation in gravity with altitude.
+Fixed the Teff calculation with an opaque cloud deck included.
+Change the transit and eclipse example files to published data for HD 189733b.
+Added an eclipse, parametric profile example file.
+Fixed a sign error in the transit spectrum calculation.
+Rechecked all of the example files by plotting the results.
+
+v0.9.7
+Changed the code to count the number of parameters instead of reading it from
+an input file entry.
+Fixed a bug where bounds were not set for teff0.
+Made the number of layers of the radiative transfer calculation variable.
+Allowed the layered T-P profile to be as short as 1 entry (isothermal).
+Added a check to make sure the parametric T-P profile is the right length.
+Added a default for a T-P profile being omitted.
+Made the code check for the smoothing parameter automatically.
+Updated example files with the new format.
+Added checks to handle missing fields in the input files.
+Allowed the parameter blocks to be in any order.
+Fixed some indentation errors.
+Fixed some bugs in the radius handling.
+Added an option to compute a gray atmosphere.
+Implemented the other available haze materials.
+Simplified the molecule and haze name handling.
+Removed the Hazetype line from the input file format.
+
+v0.9.6
+Cleaned up the example files a bit.
+Made one-stream radiative transfer the default.
+Added a try-except to make sure the input file actually exists.
+Made a small change to the output filename format.
+Fixed a bug in setting the bounds for the cloud deck.
+Added a crude method in getTauProf in Planet_layer.cpp to compute T_eff.
+Added a check in case the probability function returns NaN.
+Fixed a bug that didn't send haze parameters to setParams.
+Moved the Atmosphere initialization into the Planet constructor to speed up
+execution.
+Implemented computing the effective temperature of the atmosphere for emission
+spectra and outputting it with the retrieved parameters.
+Checked all the example input files for errors.
+Cleaned up comments and extra print statements in the code.
+Fixed the cloudless atmosphere base in APOLLO.
+
+v0.9.5
+Harmonized Apollo.pbs with the other example files.
+Changed the binning from cubic interpolation to linear because cubic crashes
+on flux.
+Automatically cut the computed spectrum to the length of the input spectrum to
+speed up execution.
+Improved the 1-stream algorithm to split a layer at a cloud deck boundary.
+Fixed the opaque cloud deck in emission and some stuff related to it.
+Added the needed header line to the haze cross section tables.
+Modified MakeHaze to add the header line to new tables.
+Fixed the 4-parameter haze model in emission and some stuff related to it.
+Fixed both clouds and haze in transit.
+Added cloud and haze example files to the tar ball.
+Updated parts of the README file that I'd been neglecting.
+
+v0.9.4.1
+Turned the low optical depth correction in getFlux back on.
+Changed the getSpectrum function to include a switch between the 1-stream and
+2-stream radiative transfer algorithms.
+Cleaned up the mess the new getFlux was in.
+Fixed the getFluxOneStream function.
+Fixed a misnumbering of haze parameters in Planet_auto.
+Fixed name of APOLLO output file.
+Verified the functionality of the parametric T-P profile with the two-stream
+algorithm.
+Verified the two-stream algorithm for an isothermal atmosphere.
+Corrected an error in the Exponential Integral solver in constants.cpp.
+Fixed a duplicate use of mu in the one-stream radiative transfer.
+Verified both radiative transfer functions against the analytic solution for
+a gray atmosphere, and double-checked the normalization.
+
+v0.9.4
+Fixed a bug in the transit spectrum calculation.
+Verified the functionality of transits.
+Changed the radiative transfer algorithm from one-stream to two-stream, using
+the short form of Mark Marley's algorithm used by Ben Burningham. This
+algorithm uses a tridiagonal matrix solver.
+Reversed order of profiles as needed for this algorithm.
+Fixed bugs that came up in getH, getT, and getP that resulted from the
+reversal of the profiles.
+Added taulayer array that is needed because the new algorithm uses layer
+optical depth instead of column optical depth.
+Added the "verbatim" switch to use the T-P profile directly from the input
+file rather than interpolating.
+
+v0.9.3
+Added the MakeHaze program and Makefile to make haze cross section tables from
+indices of refraction.
+Added index of refraction tables to the Opacities directory.
+Fixed bug in MakeHaze that caused it to not account for particle size and
+replaced the applicale haze files.
+Fixed the Gaussian quadrature integration over solid angle to achieve more
+accurate results.
+Wrote a bash script to create the tarball of all needed files.
+Verified the functionality of an opaque cloud deck.
+Added a check to ensure the cloud deck is below the top of the model
+atmosphere.
+Removed the inconsisted usage of NIRISS_Throughput.dat from Filter.py and
+removed NIRISS_Throughput.dat from the prerequisites list.
+Harmonized the import lists between APOLLO and Apollo Makespectrum.
+Harmonized the read in files sections between APOLLO and Apollo Makespectrum.
+Fixed bugs in the handling of defaults.
+Verified functionality of default settings except for the number of parameters
+and the atmosphere profile.
+Verified functionality of the Howe & Burrows (2012) haze model.
+Changed the naming system to match the number of parameters in the input file.
+Fixed a bug that set the output file name incorrectly in APOLLO.
+
+v0.9.2
+Set defaults for End parameters.
+Added an override switch for serial-run tests.
+Verified stability of the Rad and RtoD radius parameters.
+Verified functionality of the 5-parameter T-P profile (Line et al., 2012).
+* Note that Tint~300 and log(kappa)~0.3 provide a good fit to the example
+spectrum.
+Fixed a bug in GetScaOpac where some of the molecules were mislabelled.
+Implemented separate Eclipse and Resolved object modes accounting for
+stellar irradiation of close-in planets.
+Added a check to correct an odd number of walkers.
+
+v0.9.1
+Added a field to the input file format for the output directory.
+Added a switch to the input file format for serial vs. parallel operation.
+Changed switches from On/Off to True/False.
+Added a field to the input file format for number of walkers.
+Added fields to the input file format for the minimum and maximum pressure over
+which to calculate the radiative transfer.
+Changed the order of the fields in the input file format for intuitiveness.
+Changed labelling of alkali metal files to reflect their sources.
+Made the reading of the input file more robust in the order of the
+non-parameter settings.
+Added default values for all of the input settings and the Basic parameters.
+Added a bundled example input file and observations file, currently GJ 570D,
+also allowing the code to be called with no arguments.
+Fixed a bug in the mean molecular weight calculation that omitted the
+high-temperature molecules.
+Fixed a bug that could cause a crash if extraneous lines are inserted in the
+parameter list.
+Documented dependencies.
+Bundled the spectrum creator.
+
+*******************************************************************************
+
+WISH LIST
+
+Add additional cloud models. This will probably be the top priority from this
+    sub-list.
+Add additional parametric T-P profiles.
+Add additional molecules. H2-minus seems fairly important, but I'm not sure
+    what else would be.
+Add a chemical equilibrium code. Note: suppress reactions that are slower than
+    the rotation and/or circulation timescale.
+Make sure the 2-stream algorithm works with clouds. (Split the cloud
+    absorption and scattering opacities, etc.) Note 1: need to set the optical
+    depth to infinity if it is below an opaque cloud deck. Note 2: this is what
+    Arthur Adams is working on.
+Make opacity tables that extend 1% beyond the official edges of their coverage.
+
+CHANGES NEED FOR 2-PART MODELS
+
+NOTE: A better band-handling system could simplify this.
+Implement a parameter for partial cloud coverage. Think about how many
+    parameters I'll need to fit a cloudy and a clear model to a spectrum.
+    But need to get single-component models working first.
+Implement combined transit and eclipse retrieval. This may involve dayside and
+    nightside atmosphere models, but the other part is that it will need to
+    compute separate transit and emission spectra for each model.
+Implement phase curve observations. Basically the same as partial cloud
+    coverage: dayside and nightside models with the "partial coverage"
+    parameter being the phase angle.
+Implement separate evening and morning terminator models for transiting planets.
+
+IDEAS FOR VERSION 2.
+
+Break up the functions in APOLLO/Makespectrum and Planet_layer/Planet_auto into
+    separate files to be imported to clean things up.
+Create a single method to handle all of the spectroscopic mode calculations.
+Combine Planet_layer and Planet_auto into a single Planet class.
+Combine APOLLO and Makespectrum into a single code with options for its various
+    functions.
+Have the code recognize the specific parameters listed for particular
+    parametric T-P profiles and cloud models and implement default values for
+    missing parameters.
+Have APOLLO create a retrieved spectrum file and best fit plot directly after
+    an MCMC run, possibly with a separate spectrum-computing function and/or
+    using blobs.
+Clean up the wavelength v. wavenumber mess.
+Change all labeling of "haze" to "aerosol."
+
+*******************************************************************************
+
+DISCARDED IDEAS FROM VERSION 1
+
+Make the settings not depend on being on separate lines. Dropped for the same
+    reason Python uses whitespace. I've seen what happens when it's not
+    enforced (*cough* CoolTLUSTY *cough*), and it's an unreadable mess.
+Allow extrapolation of temperature outside the table. Using the boundary values
+    is probably pretty safe in pressure space. In temperature, I've got it
+    covered for 75 K to 4000 K, and that will cover the actual region being
+    probed for everything from Saturn to the top of the L-dwarf range. Plus,
+    I don't particularly trust the temperature extrapolation.
+Turn the APOLLO and Makespectrum codes into functions in a single script. Even
+    though so much of the two codes overlap, it doesn't make sense with them
+    being *functionally* so different, with one being an MCMC that must be run
+    on a cluster, while the other is a spectrum generator that can be run
+    locally.
+Add the functionality to compute haze scattering directly from the indices of
+    refraction. It's so slow that it doesn't make sense to add it to APOLLO
+    directly, especially since I've cleaned up the interface for MakeHaze. A
+    lot of the issues that motivated this idea tie into the issue of how to
+    handle the opacity files more generally.
+Have APOLLO create a retrieved spectrum file and plot directly. This doesn't
+    work because the spectrum calculation is hidden inside the lnlike function,
+    and emcee isn't designed to modify it.
+Add a default T-P profile for "Parametric" atmospheres. This doesn't work
+    because the T-P profile parameters are tied in with the parameter list
+    length. By default, the code throws an error message instead.
+Add a symbol for the average error bars on the spectral plots. Discarded in
+    favor of plotting all of the error bars.
+Make the code able to handle tables of different sizes in T-P space.
+    Currently, it assumes the table for each species is the same size. (This is
+    mainly if I want to implement things like Exomol and/or mix and match
+    them.) This is a problem because for efficient memory handling and spectrum
+    calculation, the tables need to be the same size and not interpolated.
+Add an average error bar size symbol to the JWST mode plot. Discarded because
+    the error bars are too small to be visible.
