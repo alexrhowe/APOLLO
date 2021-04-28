@@ -229,7 +229,7 @@ def GetBins(specwave,obshi,obslo):
 
 def GetScaOpac(gases,abunds):
     filler = 1. - np.sum(10**abunds)
-    gaslist = ["h2","h2only","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"]
+    gaslist = ["h2he","h2","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"]
     mmwlist = [2.28, 2.00, 4.00, 1.00, 18.0, 16.0, 28.0, 44.0, 17.0, 34.1, 24.1, 24.1, 53.0, 56.8, 63.9, 66.9, 27.0, 28.0, 34.0]
     scalist = [0.672e-27, 0.605e-27, 0.047e-27, 19.36e-27, 2.454e-27, 6.50e-27, 4.14e-27, 6.82e-27, 4.80e-27, 14.36e-27, 718.9e-27, 718.9e-27, 84.0e-27, 84.0e-27, 183.3e-27, 131.3e-27, 7.32e-27, 3.18e-27, 19.55e-27]
     '''
@@ -257,7 +257,7 @@ def GetScaOpac(gases,abunds):
 
 def GetMollist(gases):
     mollist = np.zeros(len(gases))
-    gaslist = ["h2","h2only","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"]
+    gaslist = ["h2he","h2","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"]
     for i in range(0,len(gases)):
         if gases[i] in gaslist: mollist[i] = gaslist.index(gases[i])
         else: mollist[i] = 0

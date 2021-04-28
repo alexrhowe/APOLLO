@@ -168,7 +168,7 @@ vector<double> Planet::getSpectrum(){
 void Planet::readopac(vector<int> mollist, vector<double> wavens, string table, string opacdir){
   string specfile;
   
-  string gaslist[19] = {"h2","h2only","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"};
+  string gaslist[19] = {"h2he","h2","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"};
   
   if(table=="hires"){
     

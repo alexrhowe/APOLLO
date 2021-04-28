@@ -1409,9 +1409,13 @@ if task=='Retrieval':
 
     if a1>=0:
         ffout.write('Atm       {0:s}\n'.format(atmtype))
-        for i in range(a1,a2+1):
-            ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))
-
+        if smooth:
+            for i in range(a1,a2+1):
+                ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))
+        else:
+            for i in range(a1,a2):
+                ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))            
+                
     if c1>=0:
         ffout.write('Clouds    {0:d}    {1:s}\n'.format(cloudmod,hazestr))
         for i in range(c1,c2):
