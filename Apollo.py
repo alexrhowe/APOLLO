@@ -597,7 +597,7 @@ ibinhi = bins[0]
 ibinlo = bins[1]
 
 # Needed to calculate the spectrum with the wavelength offset later.
-delmodwave = modwave+0.001
+delmodwave = 1.e4/((1.e4/modwave)+0.001)
 delbins = af.GetBins(delmodwave,binhi,binlo)
 delibinhi = ibinhi-delbins[0]
 delibinlo = ibinlo-delbins[1]
