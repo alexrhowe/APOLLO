@@ -1,2 +1,8 @@
 
 .DS_Store
+user_parameters.py~
+user/#T-P_functions.py#
+user/T-P_functions.py~
+user/.#T-P_functions.py
+user/defaults.py~
+*.py~

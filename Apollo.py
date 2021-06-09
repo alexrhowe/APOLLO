@@ -1,4 +1,5 @@
 from __future__ import print_function
+from inspect import getmembers, isfunction
 import os
 import sys
 import numpy as np
@@ -6,6 +7,8 @@ import scipy.optimize as op
 from scipy.interpolate import interp1d
 from scipy.stats import invgamma
 from distutils.util import strtobool
+from user.defaults import *
+from user import TP_profiles
 import emcee
 import schwimmbad
 
@@ -21,6 +24,11 @@ from src import AddNoise
 
 # An attempt at adding a multi-nested sampling option.
 #multinest = True
+
+REarth_in_cm = 6.371e8
+parsec_in_cm = 3.086e18
+RJup_in_REarth = 11.2
+
 '''
 try:
     import pymultinest
@@ -89,56 +97,6 @@ for i in range(0,len(lines1)):
 
 fparams.close()
 fparams = open(settings,'r')
-
-# Default Settings
-
-name = 'example'     # Bundled example file
-mode = 0             # Emission spectrum
-modestr = 'Resolved' # Needed for output file name
-parallel = True      # Parallel operation
-datain = 'examples/example.obs.dat' # Bundled example file
-polyfit = False      # Switch to normalize the spectrum to a polynomial fit
-norm = False         # Dummy variable if polyfit is false
-dataconv = 1         # Factor to convolve the observations to blur the spectrum or account for actual resolving power
-databin = 1          # Factor to bin down the observations for simpler fitting
-degrade = 1          # Factor to degrade the model spectrum for faster calculation
-prior = 'Uniform'    # Uniform priors
-nwalkers = 0         # Placeholder for later adjustment
-nsteps = 30000       # Tested minimum required number of steps
-tstar = 5770.        # Solar temperature
-rstar = 1.0          # Solar radius
-sma = 1.0            # Semi-Major Axis
-starspec = ''        # Optional stellar spectrum file
-dist = 10.0          # Standardized distance, 10 pc
-RA = 0.0             # Right ascension
-dec = 0.0            # Declination
-minmass = 0.5        # Minimum mass in Jupiter masses
-maxmass = 80.0       # Maximum mass in Jupiter masses
-hires = ''           # Default set of opacity tables to compute the spectra
-lores = 'lores'      # Default low-resolution tables to compute Teff
-minP = 0.0           # Pressure range to integrate over in cgs, default 1 mubar to 1 kbar.
-maxP = 9.0
-gray = False         # Used to create a gray atmosphere for testing
-vres = 71            # Number of layers for radiative transfer
-streams = 1          # Use 1-stream by default
-wavei = 10000./0.60  # Full NIR wavelength range
-wavef = 10000./5.00
-outmode = ''         # JWST observing mode
-exptime = 1000.      # Exposure time in seconds
-outdir = 'samples'   # Default output directory
-short = False        # Switch to create short output file names
-printfull = False    # Switch to print the full sample array instead of the last 10%
-opacdir = '../Opacities' # Default opacities directory
-
-norad = False        # Flags if no radius variable is in the input file
-natm = 0             # Placeholder in case T-P profile is omitted
-verbatim = False     # Interpolate the T-P profile
-tgray = 1500         # Temperature of gray atmosphere
-hazetype = 0         # No Clouds
-hazestr = 'None'     # No Clouds
-cloudmod = 0         # No Clouds
-
-hazelist = ['None','H2SO4','Polyacetylene','Tholin','Corundum','Enstatite','Forsterite','Iron','KCl','Na2S','NH3Ice','Soot','H2OCirrus','H2OIce','ZnS']
 
 # Read in settings
 
@@ -622,7 +580,8 @@ cloudmod = int(cloudmod)
 hazetype = int(hazetype)
 
 atmmod = 0
-if atmtype=='Layers': atmmod = 0
+TP_functions = dict(getmembers(TP_profiles, isfunction))
+if atmtype=='Layers' or atmtype in TP_functions: atmmod = 0
 if atmtype=='Parametric': atmmod = 1
 
 switches = [mode,cloudmod,hazetype,streams,atmmod]
@@ -723,7 +682,7 @@ def GetModel(x):
     else:
         global norad
         norad = True
-        params1[0] = 11.2
+        params1[0] = RJup_in_REarth
         # Default radius = Jupiter
 
     # Gravity handling
@@ -779,7 +738,15 @@ def GetModel(x):
     else:
         for i in range(0,len(tpprof)): tpprof[i] = x[i+a1]
         if atmtype=='Parametric': tpprof[1] = 10**tpprof[1]
-    
+
+        if atmtype in TP_functions:
+            tplong = (TP_functions[atmtype])(*tpprof,
+                                             num_layers_final=vres,
+                                             P_min=minP,
+                                             P_max=maxP)
+            # Compute spectrum
+            planet.set_Params(params1,abund,tplong)
+            specflux = planet.get_Spectrum()
         if atmtype == 'Layers':
             if verbatim: tplong = tpprof
             elif natm==0:
@@ -834,15 +801,15 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
     theta_planet = 0.
     if 'Rad' in basic:
         pos = basic.index('Rad')
-        theta_planet = params[b1+pos]*6.371e8/dist/3.086e18
+        theta_planet = params[b1+pos]*REarth_in_cm/dist/parsec_in_cm
     elif 'RtoD' in basic:
         pos = basic.index('RtoD')
         theta_planet = 10**params[b1+pos]
     elif 'RtoD2U' in basic:
         pos = basic.index('RtoD2U')
-        theta_planet = np.sqrt(params[b1+pos])*6.371e8/dist/3.086e18
+        theta_planet = np.sqrt(params[b1+pos])*REarth_in_cm/dist/parsec_in_cm
     else:
-        theta_planet = 11.2*6.371e8/dist/3.086e18
+        theta_planet = RJup_in_REarth*REarth_in_cm/dist/parsec_in_cm
         # Default radius = Jupiter
     
     # Statistical parameters
@@ -939,17 +906,17 @@ def lnprior(x,teff):
         grav = 10**params[b1+pos]
     if 'Rad' in basic:
         pos = basic.index('Rad')
-        radius = 6.371e8*params[b1+pos]
+        radius = REarth_in_cm*params[b1+pos]
     elif 'RtoD' in basic:
         pos = basic.index('RtoD')
-        radius = 10**params[b1+pos]*dist*4.838e9*6.371e8 # convert R/D to Earth radii
+        radius = 10**params[b1+pos]*dist*4.838e9*REarth_in_cm # convert R/D to Earth radii
     elif 'RtoD2U' in basic:
         pos = basic.index('RtoD2U')
-        radius = np.sqrt(params[b1+pos])*6.371e8
-    else: radius = 11.2*6.371e8
+        radius = np.sqrt(params[b1+pos])*REarth_in_cm
+    else: radius = RJup_in_REarth*REarth_in_cm
     mass = grav*radius*radius/6.67e-8/1.898e30
     if mass<minmass or mass>maxmass:
-        print('Mass out of Bound. Rad={0} log(g)={1} Mass={2}'.format(radius/6.371e8/11.2,np.log10(grav),mass))
+        print('Mass out of Bound. Rad={0} log(g)={1} Mass={2}'.format(radius/REarth_in_cm/RJup_in_REarth,np.log10(grav),mass))
         return -np.inf
 
     if len(gases)==0:
@@ -997,14 +964,14 @@ def lnprob(x,binshi,binslo,fluxrat,frathigh):
         grav = 10**params[b1+pos]
     if 'Rad' in basic:
         pos = basic.index('Rad')
-        radius = 6.371e8*params[b1+pos]
+        radius = REarth_in_cm*params[b1+pos]
     elif 'RtoD' in basic:
         pos = basic.index('RtoD')
-        radius = 10**params[b1+pos]*dist*4.838e9*6.371e8 # convert R/D to Earth radii
+        radius = 10**params[b1+pos]*dist*4.838e9*REarth_in_cm # convert R/D to Earth radii
     elif 'RtoD2U' in basic:
         pos = basic.index('RtoD2U')
-        radius = np.sqrt(params[b1+pos])*6.371e8
-    else: radius = 11.2*6.371e8
+        radius = np.sqrt(params[b1+pos])*REarth_in_cm
+    else: radius = RJup_in_REarth*REarth_in_cm
     mass = grav*radius*radius/6.67e-8/1.898e30
 
     # Compute C/O and [Fe/H]
@@ -1064,24 +1031,24 @@ if task=='Ensemble':
     allspec = np.zeros((len(eplist),len(modwave)))
     for ii in range(0,len(eplist)):
         print('Model #{0:d}'.format(ii))
-        radfinal = 11.2
+        radfinal = RJup_in_REarth
 
         pos = 0
         theta_planet = 0.
         if 'Rad' in basic:
             pos = basic.index('Rad')
-            theta_planet = eplist[i][b1+pos]*6.371e8/dist/3.086e18
+            theta_planet = eplist[i][b1+pos]*REarth_in_cm/dist/parsec_in_cm
             radfinal = eplist[i][b1+pos]
         elif 'RtoD' in basic:
             pos = basic.index('RtoD')
             theta_planet = 10**eplist[i][b1+pos]
-            radfinal = 10**eplist[i][b1+pos]*dist*3.086e18/6.371e8
+            radfinal = 10**eplist[i][b1+pos]*dist*parsec_in_cm/REarth_in_cm
         elif 'RtoD2U' in basic:
             pos = basic.index('RtoD2U')
-            theta_planet = np.sqrt(eplist[i][b1+pos])*6.371e8/dist/3.086e18
+            theta_planet = np.sqrt(eplist[i][b1+pos])*REarth_in_cm/dist/parsec_in_cm
             radfinal = np.sqrt(eplist[i][b1+pos])
         else:
-            theta_planet = 11.2*6.371e8/dist/3.086e18
+            theta_planet = RJup_in_REarth*REarth_in_cm/dist/parsec_in_cm
             # Default radius = Jupiter
 
         print(eplist[ii])
@@ -1186,9 +1153,9 @@ if task=='Retrieval':
             for i2 in range(0,len(coords)):
                 for i3 in range(0,len(coords[i2])):
                     if pnames[i3]=='RtoD2U':
-                        fchain.write('{0:f} '.format(np.sqrt(coords[i2][i3])/11.2))
+                        fchain.write('{0:f} '.format(np.sqrt(coords[i2][i3])/RJup_in_REarth))
                     elif pnames[i3]=='Rad' or pnames[i3]=='RtoD':
-                        fchain.write('{0:f} '.format(coords[i2][i3]/11.2))
+                        fchain.write('{0:f} '.format(coords[i2][i3]/RJup_in_REarth))
                     else:
                         fchain.write('{0:f} '.format(coords[i2][i3]))
                 for i3 in range(0,len(blobs[i2])):
@@ -1296,9 +1263,9 @@ if task=='Retrieval':
     for i in range(0,len(bsamples3)):
         for j in range(0,lenbasic):
             if j==rpos:
-                bsamples3[i,j] = np.sqrt(bsamples2[i,j])/11.2
+                bsamples3[i,j] = np.sqrt(bsamples2[i,j])/RJup_in_REarth
             elif basic[j]=='Rad' or basic[j]=='RtoD':
-                bsamples3[i,j] = bsamples2[i,j]/11.2
+                bsamples3[i,j] = bsamples2[i,j]/RJup_in_REarth
             else:
                 bsamples3[i,j] = bsamples2[i,j]
             if j==ppos:
@@ -1431,25 +1398,25 @@ if task=='Retrieval':
 if task=='Spectrum':
     finalparams = plparams
 
-radfinal = 11.2
+radfinal = RJup_in_REarth
 
 while True:
     pos = 0
     theta_planet = 0.
     if 'Rad' in basic:
         pos = basic.index('Rad')
-        theta_planet = finalparams[b1+pos]*6.371e8/dist/3.086e18
+        theta_planet = finalparams[b1+pos]*REarth_in_cm/dist/parsec_in_cm
         radfinal = finalparams[b1+pos]
     elif 'RtoD' in basic:
         pos = basic.index('RtoD')
         theta_planet = 10**finalparams[b1+pos]
-        radfinal = 10**finalparams[b1+pos]*dist*3.086e18/6.371e8
+        radfinal = 10**finalparams[b1+pos]*dist*parsec_in_cm/REarth_in_cm
     elif 'RtoD2U' in basic:
         pos = basic.index('RtoD2U')
-        theta_planet = np.sqrt(finalparams[b1+pos])*6.371e8/dist/3.086e18
+        theta_planet = np.sqrt(finalparams[b1+pos])*REarth_in_cm/dist/parsec_in_cm
         radfinal = np.sqrt(finalparams[b1+pos])
     else:
-        theta_planet = 11.2*6.371e8/dist/3.086e18
+        theta_planet = RJup_in_REarth*REarth_in_cm/dist/parsec_in_cm
         # Default radius = Jupiter
     
     spectrum = GetModel(finalparams)
