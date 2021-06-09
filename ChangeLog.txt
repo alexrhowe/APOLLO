@@ -97,6 +97,19 @@ Streamlined reading in the paramater file with less use of split().
 Fixed a bug that caused deltaL to appear twice in the output file for a
 parametric T-P profile.
 Split the To-Do List and Change Log into a separate ChangeLog.txt file.
+Minor updates to inline documentation.
+Reduced the number of walkers in Serial model to the minimum to allow for
+faster testing.
+Corrected the initial assignment of logf.
+Corrected the default value of lnf from 1.0 to -100.0.
+Add a commented-out runtime-updating forward model plot and forward model
+write-to-file to lnlike() for testing purposes.
+Added likelihood/length-of-spectrum as an extra column to the samples output
+file.
+Wrote the retrieved values of 'End' parameters to the output file instead of
+defaults.
+Moved the mass calculation to the correct position near the beginning of
+setParams() in Planet.cpp.
 
 v0.11.5
 Combined Planet_layer.cpp and Planet_auto.cpp into a single Planet.cpp (and the

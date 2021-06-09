@@ -85,6 +85,7 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
   minP = plparams[7];
   maxP = plparams[8];
   sma = plparams[9]*1.496e13;
+  mp = grav/G*rp*rp;
   
   haze = vector<double>(4,0);
   if(hazetype!=0){
@@ -127,7 +128,6 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
     getProfParam(tpprof);
   }
   
-  mp = grav/G*rp*rp;
   // hmax changed to the 1 mubar level; can change this
   hmin = getH(pressure);
   hmax = hprof[0];

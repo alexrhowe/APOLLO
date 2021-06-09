@@ -10,10 +10,11 @@ import emcee
 import schwimmbad
 
 import matplotlib
-# Used on Discover because the GUI does not work there. Comment out to use 'Manual' mode.
+# Used on Discover because the GUI backend does not work there. Comment out to use 'Manual' mode.
 #matplotlib.use('pdf')
 import matplotlib.pyplot as plt
 
+# Comment out corner if not supported on your platform.
 import corner
 from src import wrapPlanet
 from src import ApolloFunctions as af
@@ -38,10 +39,8 @@ AddNoise.py
 Filter.py
 setup.py
 
-Planet_layer.cpp
-Planet_layer.h
-Planet_auto.cpp
-Planet_auto.h
+Planet.cpp
+Planet.h
 Atmosphere.cpp
 Atmosphere.h
 constants.cpp
@@ -365,6 +364,7 @@ if override:
     parallel = False
     printfull = True
     nsteps = 2
+    nwalkers = ndim*2 + 2
 
 b2 = b1+bnum
 g2 = g1+gnum
@@ -447,7 +447,7 @@ for i in range(0,obslength):
 if 'logf' in end:
     pos = end.index('logf')
     plparams[e1+pos] = np.log(max(errhi**2))
-    guess[e1+pos] = guess[e1+pos]
+    guess[e1+pos] = plparams[e1+pos]
     mu[e1+pos] = np.log(max(errhi**2))
     sigma[e1+pos] = abs(mu[e1+pos])/10.
     bounds[e1+pos,0] = np.log(min(errhi**2) * bounds[e1+pos,0])
@@ -811,6 +811,8 @@ def GetModel(x):
             
     teff = planet.get_Teff()
     if task!='Ensemble': print('Teff: ',teff)
+
+    # Plot the results of get_Spectrum() directly for testing purposes.
     '''
     figtest = plt.figure()
     ax = figtest.add_subplot()
@@ -818,6 +820,7 @@ def GetModel(x):
     plt.savefig('plots/test.png')
     sys.exit()
     '''
+    
     return specflux
 
 # End of GetModel function
@@ -855,7 +858,7 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
         pos = end.index('logf')
         lnf = params[e1+pos]
     else:
-        lnf = 1.0
+        lnf = -100.0
 
     # Multiply by solid angle and collecting area
     fincident = np.zeros(len(modflux))
@@ -868,6 +871,26 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
             # so its square converts flux at the surface to flux at the telescope
     if mode==2:
         fincident = modflux
+
+    # This test figure plots the forward model against the observations to the screen
+    # and updates with every sample in Serial mode.
+    '''
+    li1.set_xdata(modwave)
+    li1.set_ydata(fincident)
+    li2.set_xdata(wavehi)
+    li2.set_ydata(masternorm)
+    ax.relim()
+    ax.autoscale_view(True,True,True)
+    figa.canvas.draw()
+    plt.pause(0.05)
+    '''
+
+    # Outputs a forward model spectrum pre-processing. Part of the testing suite.
+    '''
+    fff = open('Sample.dat','w')
+    for i in range(0,len(modwave)):
+        fff.write('{0:e} {1:e}\n'.format(modwave[i],fincident[i]))
+    '''
         
     # Adjust for wavelength calibration error
     newibinhi = ibinhi + delibinhi*deltaL
@@ -904,6 +927,10 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
         print("Error: ")
         print(params)
         print(params1)
+
+    # Uncomment to halt execution after the first sample for testing.
+    #sys.exit()
+        
     return likelihood
     
 # End of likelihood function
@@ -1049,6 +1076,21 @@ def lnprob(x,binshi,binslo,fluxrat,frathigh):
 
 # End of probability function
 
+# Sets up the runtime plot in lnlike(). Part of the testing suite.
+'''
+figa = plt.figure()
+ax = figa.add_subplot(111)
+
+x1=[0]
+y1=[0]
+x2=[0]
+y2=[0]
+li1, = ax.plot(x1,y1)
+li2, = ax.plot(x2,y2)
+figa.canvas.draw()
+plt.show(block=False)
+'''
+
 # Set up the MCMC run
 #print('Likelihood of input parameters: {0:f}'.format(lnlike(guess,ibinhi,ibinlo,binflux,binerr)))
 
@@ -1152,8 +1194,8 @@ if task=='Retrieval':
     else: foutname = outdir + outfile + 'dat'
     fchain = open(foutname,'w')
 
-    if printfull: fchain.write('{0:d} {1:d} {2:d}'.format(nwalkers,nsteps,ndim+4))
-    else: fchain.write('{0:d} {1:d} {2:d}'.format(nwalkers,(int)(nsteps/10),ndim+4))
+    if printfull: fchain.write('{0:d} {1:d} {2:d}'.format(nwalkers,nsteps,ndim+5))
+    else: fchain.write('{0:d} {1:d} {2:d}'.format(nwalkers,(int)(nsteps/10),ndim+5))
 
     if atmtype=='Layers': fchain.write(' {0:d} {1:f} {2:f}\n'.format(a2-a1,minP-6.,maxP-6.))
     else: fchain.write('\n')
@@ -1163,7 +1205,7 @@ if task=='Retrieval':
             fchain.write('Rad ')
         else:
             fchain.write('{0:s} '.format(pnames[i]))
-    fchain.write('Mass C/O [Fe/H] Teff\n')
+    fchain.write('Mass C/O [Fe/H] Teff Likelihood\n')
 
     # Actual MCMC run, and Write samples to output file
 
@@ -1193,6 +1235,7 @@ if task=='Retrieval':
                         fchain.write('{0:f} '.format(coords[i2][i3]))
                 for i3 in range(0,len(blobs[i2])):
                     fchain.write('{0:f} '.format(blobs[i2][i3]))
+                fchain.write('{0:f}\n'.format(likli[i2]/len(masternorm)))
                 fchain.write('\n')
         i = i+1
     fchain.close()
@@ -1422,7 +1465,9 @@ if task=='Retrieval':
             ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))
 
     if e1>=0:
-        ffout.write('End\ndeltaL	       0.      0.     1.0  -10.0    10.0\nlogf	       1.      1.     0.1    0.01  100.')
+        ffout.write('End\n')
+        for i in range(e1,e2):
+            ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))
 
 # End of retrieval-specific section
     
