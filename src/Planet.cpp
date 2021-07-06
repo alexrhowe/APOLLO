@@ -26,7 +26,7 @@ Planet::Planet(vector<int> switches, vector<double> waves, vector<double> wavesl
   string dimfile = opacdir + "/gases/h2o." + hires + ".dat";
   ifstream dimin(dimfile.c_str());
   if(!dimin) cout << "Opacity Files Not Found" << std::endl;
-  dimin >> npress >> pmin >> pmax >> ntemp >> tmin >> tmax >> nwave >> lmin >> lmax >> res;
+  dimin >> npress >> pmin >> pmax >> ntemp >> tmin >> tmax >> nwave >> wmin >> wmax >> res;
   dimin.close();
   
   tmin = pow(10,tmin);
@@ -35,10 +35,8 @@ Planet::Planet(vector<int> switches, vector<double> waves, vector<double> wavesl
   pmax += 6.;
   pmin = pow(10,pmin);
   pmax = pow(10,pmax);
-  wmin = 10000./lmin;
-  wmax = 10000./lmax;
   
-  degrade = round(res*log(wavens[0]/wavens[1]));
+  degrade = round(res*log(wavens[1]/wavens[0]));
   ntable = ceil((double)nwave/degrade);
   
   if(nspec==0){
@@ -143,7 +141,7 @@ double Planet::getTeff(){
   double totflux=0.;
 
   for(int i=1; i<wavenslo.size(); i++){
-    totflux += tdepthlo[i]*(1./wavenslo[i]-1./wavenslo[i-1]);
+    totflux += tdepthlo[i]*(wavenslo[i]-wavenslo[i-1]);
   }
 
   // Compute Teff based on the Stefan-Boltzmann Law.
@@ -196,7 +194,7 @@ void Planet::readopac(vector<int> mollist, vector<double> wavens, string table, 
 	  for(int j=0; j<npress; j++){
 	    for(int k=0; k<ntemp; k++){
 	      for(int l=0; l<nwave; l++){
-		double wn = 10000./(lmin*exp(l/res));
+		double wn = wmin*exp(l/res);
 		x = (int)(l/degrade);
 		double tmid = tmin*pow(10,k/20.3);
 		double bf = HminBoundFree(tmid, wn);
@@ -257,7 +255,7 @@ void Planet::readopac(vector<int> mollist, vector<double> wavens, string table, 
 	  for(int j=0; j<npress; j++){
 	    for(int k=0; k<ntemp; k++){
 	      for(int l=0; l<nwavelo; l++){
-		double wn = 10000./(lmin*exp(l/reslo));
+		double wn = wmin*exp(l/reslo);
 		double tmid = tmin*pow(10,k/20.3);
 		double bf = HminBoundFree(tmid, wn);
 		double ff = HminFreeFree(tmid, wn);
@@ -487,7 +485,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
   vector<double> cosbar(nlayershort,0);
 
   for(int i=0; i<wavens.size(); i++){
-    double wavelength = 1./wavens[i];
+    double wavelength = wavens[i]/10000.;
 
     double btop;
     double bottom;
@@ -839,7 +837,7 @@ vector<double> Planet::getFluxes(vector<double> wavens, double cosmu, double del
     double sinmu = sqrt(1.-cosmu*cosmu);
     
     for(int i=0; i<wavens.size(); i++){
-      double wavelength = 1./wavens[i];
+      double wavelength = wavens[i]/1.e4;
       
       for(int j=nlayer-1; j>=0; j--){
 	// Entire layer below cloud deck
@@ -887,7 +885,7 @@ vector<double> Planet::getFluxes(vector<double> wavens, double cosmu, double del
     double sinmu = sqrt(1.-cosmu*cosmu);
     
     for(int i=0; i<wavenslo.size(); i++){
-      double wavelength = 1./wavenslo[i];
+      double wavelength = wavenslo[i]/1.e4;
       
       for(int j=nlayer-1; j>=0; j--){
 	// Entire layer below cloud deck
@@ -1094,7 +1092,7 @@ void Planet::getTauProf(vector<double> wavens, string table)
     double backwardfrac = 0.;
     
     for(int i=0; i<wavens.size(); i++){
-      double wavel = 10000./wavens[i];
+      double wavel = wavens[i];
       
       for(int j=0; j<nlayer; j++){
 	double dl = (hprof[j]-hprof[j+1]);
@@ -1197,7 +1195,7 @@ void Planet::getTauProf(vector<double> wavens, string table)
     double backwardfrac = 0.;
     
     for(int i=0; i<wavenslo.size(); i++){
-      double wavel = 10000./wavenslo[i];
+      double wavel = wavenslo[i];
       
       for(int j=0; j<nlayer; j++){
 	double dl = (hprof[j]-hprof[j+1]);
@@ -1310,7 +1308,7 @@ void Planet::transTauProf(vector<double> wavens, string table)
     }
   
     for(int ii=0; ii<wavens.size(); ii++){
-      double wavel = 10000./wavens[ii];
+      double wavel = wavens[ii];
       for(int i=1; i<nlayer; i++){
 	for(int j=0; j<i; j++){
 	  double dl = (hprof[j]-hprof[j+1]);
@@ -1387,7 +1385,7 @@ void Planet::transTauProf(vector<double> wavens, string table)
     }
   
     for(int ii=0; ii<wavenslo.size(); ii++){
-      double wavel = 10000./wavenslo[ii];
+      double wavel = wavenslo[ii];
       for(int i=1; i<nlayer; i++){
 	for(int j=0; j<i; j++){
 	  double dl = (hprof[j]-hprof[j+1]);
@@ -1466,7 +1464,7 @@ void Planet::getOpacProf(double rxsec, vector<double> wavelist, vector<double> a
   
   if(table=="hires"){
     opacprof = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
-    wval = log(10000./wavelist[0]/lmin)*res/degrade;
+    wval = log(wavelist[0]/wmin)*res/degrade;
     wstart = (int)wval;
   }
   if(table=="lores") opacproflo = vector<vector<double> >(wavenslo.size(),vector<double>(nlayer,0));
@@ -1569,8 +1567,8 @@ void Planet::getSca(double rxsec, vector<double> wavelist, string table)
 
 double Planet::HminBoundFree(double t, double waven){
   double lambda0 = 1.6419;
-  if(waven > 1.e4/lambda0){
-    double lambda = 1.e4/waven;
+  if(waven < lambda0){
+    double lambda = waven;
     double x = sqrt(1./lambda - 1./lambda0);
     double f = 0.;
     f *= x;
@@ -1625,7 +1623,7 @@ double Planet::HminFreeFree(double t, double waven){
 
   // al = wavelength in microns
   
-  double al = 1.e4/waven;
+  double al = waven;
   double sff_hm=0.;
   
   if(t < 800 || al > 20){

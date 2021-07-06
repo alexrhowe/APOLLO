@@ -1,74 +1,79 @@
 APOLLO TO-DO LIST
 
 Bugs and Bug Detection:
-1. Edge effects cause errors when the specific mode is the same width as the
+1. The output parameter file writes deltaL twice with a parametric T-P profile.
+2. Edge effects cause errors when the specific mode is the same width as the
    model spectrum.
-2. Check that the metallicity, etc. are being computed correctly when there
+3. Check that the metallicity, etc. are being computed correctly when there
    are fixed parameters.
-3. Handling of radius vs. area in an ensemble (and in general).
-4. Give absorption and scattering cross sections separate table sizes.
+4. Handling of radius vs. area in an ensemble (and in general).
+5. Add a check to Atmosphere.cpp to ensure the absorption and scattering cross
+   section files have identical binnings. (Actually, I think I can just give
+   them different table sizes since they do get interpolated independently.)
+6. Revise the AddNoise function based on the ETC or otherwise fix the
+   inconsistencies.
 
 Pending Updates:
-5. Implement Arthur's Planet_auto_4-models_exponential.cpp.
-6. Implement Arthur's changes to output and plot both median and MLE values.
-7. Implement and example Arthur's addition of cloud parameters and parametric
-   T-P profiles to Plot Apollo.
-8. Implement Arthur's contribution functions (once completed).
+7. Implement Arthur's Planet_auto_4-models_exponential.cpp.
+8. Implement Arthur's plotting of MLE values.
+9. Implement Arthur's plotting of parametric T-P profiles.
+10. Implement Arthur's contribution functions (once completed).
 
 Cosmetic:
-9. Reorganize the header file to handle public and private correctly.
-10. Replace all example output files with up to date versions.
-11. Update the inline documentation and README file. (Include any NOTES from
-    the Change Log.)
-12. Revise the code for clarity: less confusing names for some parameters,
-    correct labeling of "cross section" vs. "opacity" and "aerosol" vs. "cloud"
+11. Reorganize the header file to handle public and private correctly.
+12. Consider changing some parameter names to be less confusing.
+13. Clean up JWST mode file names, and add or delete appropriate files.
+14. Replace all example output files with up to date versions.
+15. Update the inline documentation.
+16. Update the README file.
+17. Correct labeling of "cross section" vs. "opacity" and "aerosol" vs. "cloud"
     or "haze".
-13. Create or modify an example file for Ensemble mode.
+18. Create or modify an example file for Ensemble mode.
 
 Aerosol and T-P Models:
-14. Combine layer-by-layer and (multiple?) parametric T-P profile generation
-    functions into a single pipeline.
-15. Combine the various aerosol models into a single pipeline (with clear names
-    for each model).
-16. Add more cloud models, especially particle size distributions.
-17. Set the cloud priors so that the cloud base cannot be deeper than the
+19. Build a separate file for e.g. T-P profile functions and/or cloud functions.
+    (Or put them into Atmosphere.cpp?)
+20. Give each cloud model a name to use in the input file.
+21. Add more cloud models, especially particle size distributions.
+22. Set the cloud priors so that the cloud base cannot be deeper than the
     maximum pressure in the model.
 
 Cross Section Tables:
-18. Add an option to auto-detect the resolution of the input spectrum and
-    sample the cross section files accordingly.
-19. Convert the cross section tables to bin files and do direct lookup of the
+23. Allow the default hires table setting to detect the resolution of the
+    observations and respond appropriately.
+24. Convert the cross section tables to bin files and do direct lookup of the
     needed wavelengths.
-20. Create lo-res opacity tables suitable to be added to the Github repository.
+25. Create lo-res opacity tables suitable to be added to the Github repository.
 
 Input/Output:
-21. Consider adding more command line arguments to MakeHaze and checking for
+26. Consider adding more command line arguments to MakeHaze and checking for
     bad inputs.
-22. Add additional flexibility to Plot Ensemble.
-23. Add an option to plot comparison or literature values to Plot Apollo.
-24. Print some of the output in LaTeX formatting.
-25. Re-evaluate specific mode spectrum generation. Would it be better to accept
-    auxiliary input files like the photometric mode does instead of hard-coding
-    all the JWST modes. Consider what specific mode options to include, if any
-    since we don't have any other observatories. Clean up JWST mode file names,
-    and add or delete appropriate files. Revise the AddNoise function based on
-    the ETC or otherwise fix the inconsistencies.
+27. Consider what specific mode options to include, since we don't have any
+    other observatories. Would it be better to do like the photometric one and
+    have an auxiliary input file(s)?
+28. Add flexibility to Plot Ensemble.
+29. Output both MLE and median retrieved parameters.
+30. Add an option to plot comparison or literature values to Plot Apollo.
+31. Print some of the output in LaTeX formatting?
+32. Add cloud models and parametric T-P profiles to Plot Apollo. Also consider
+    other useful combinations like log(g) with abundances.
 
 Other Features:
-26. Add options for reflection spectra.
-27. Implement 2-stream radiative transfer for transits.
-28. Let transits use an input stellar spectrum.
-29. Re-evaluate appropriate usage of separate upper and lower error bars.
-30. Add options to test for convergence on the fly for both emcee's
+33. Add options for reflection spectra.
+34. Implement 2-stream radiative transfer for transits.
+35. Let transits use an input stellar spectrum.
+36. Am I actually using the different upper and lower error bars?
+37. Add options to test for convergence on the fly for both emcee's
     autocorrelation and an additional stopping criterion to max_steps.
-31. Implement BIC or other statistical tests.
-32. Add an option to lnlike() to bypass the calculation of binmod and s2, and
+38. Calculate BICs?
+39. Add an option to lnlike() to bypass the calculation of binmod and s2, and
     call AddNoise() to find goodness of fit for specific JWST modes.
-33. Add parameters for flux calibration between bands.
+40. Add parameters for flux calibration between bands?
 
 *******************************************************************************
 
-APOLLO CHANGE LOG
+
+CHANGE LOG
 
 v0.12.0
 Created new 'Ensemble' operating mode, specified at the command line. This
@@ -94,28 +99,6 @@ Changed the opacity table naming: h2only changed to h2, and h2 changed to h2he,
 to match the actual molecules used.
 Made h2he the default filler gas instead of h2 only.
 Streamlined reading in the paramater file with less use of split().
-Fixed a bug that caused deltaL to appear twice in the output file for a
-parametric T-P profile.
-Split the To-Do List and Change Log into a separate ChangeLog.txt file.
-Minor updates to inline documentation.
-Reduced the number of walkers in Serial model to the minimum to allow for
-faster testing.
-Corrected the initial assignment of logf.
-Corrected the default value of lnf from 1.0 to -100.0.
-Add a commented-out runtime-updating forward model plot and forward model
-write-to-file to lnlike() for testing purposes.
-Added likelihood/length-of-spectrum as an extra column to the samples output
-file.
-Wrote the retrieved values of 'End' parameters to the output file instead of
-defaults.
-Moved the mass calculation to the correct position near the beginning of
-setParams() in Planet.cpp.
-Fixed a bug in the "no-radius" normalization.
-Fixed several problems with the binning and convolving functions.
-Changed BinBands to accept 2D arrays and return flattened arrays regardless of
-the number of bands.
-Converted the whole code from dealing with wavenumbers to dealing with
-wavelengths because that's much less confusing.
 
 v0.11.5
 Combined Planet_layer.cpp and Planet_auto.cpp into a single Planet.cpp (and the
@@ -806,8 +789,6 @@ parameter list.
 Documented dependencies.
 Bundled the spectrum creator.
 
-*******************************************************************************
-
 WISH LIST
 
 Add additional cloud models. This will probably be the top priority from this
@@ -853,8 +834,6 @@ Have APOLLO create a retrieved spectrum file and best fit plot directly after
     using blobs.
 Clean up the wavelength v. wavenumber mess.
 Change all labeling of "haze" to "aerosol."
-
-*******************************************************************************
 
 DISCARDED IDEAS FROM VERSION 1
 

@@ -120,8 +120,8 @@ maxP = 9.0
 gray = False         # Used to create a gray atmosphere for testing
 vres = 71            # Number of layers for radiative transfer
 streams = 1          # Use 1-stream by default
-wavei = 10000./0.60  # Full NIR wavelength range
-wavef = 10000./5.00
+wavei = 0.60         # Full NIR wavelength range
+wavef = 5.00
 outmode = ''         # JWST observing mode
 exptime = 1000.      # Exposure time in seconds
 outdir = 'samples'   # Default output directory
@@ -428,20 +428,38 @@ fobs = open(datain,'r')
 obslines = fobs.readlines()
 obslength = len(obslines)
 
-wavehi = np.zeros(obslength)
 wavelo = np.zeros(obslength)
+wavehi = np.zeros(obslength)
 flux = np.zeros(obslength)
 errlo = np.zeros(obslength)
 errhi = np.zeros(obslength)
 
 for i in range(0,obslength):
-    wavehi[i] = obslines[i].split()[0]
-    wavelo[i] = obslines[i].split()[1]
+    wavelo[i] = obslines[i].split()[0]
+    wavehi[i] = obslines[i].split()[1]
     flux[i] = obslines[i].split()[5]
     errlo[i] = obslines[i].split()[3]
     errhi[i] = obslines[i].split()[4]
 
 # End of read in observations
+
+# Process observations for retrieval
+
+# Separate out individual bands
+bandindex,bandlo,bandhi,bandflux,banderr = af.FindBands(wavelo,wavehi,flux,errhi)
+nband = len(bandhi)
+
+# Convolve the observations to account for effective resolving power or fit at lower resolving power
+convflux,converr = af.ConvBands(bandflux,banderr,dataconv)
+
+# Bin the observations to fit a lower sampling resolution
+binlo,binhi,binflux,binerr = af.BinBands(bandlo,bandhi,convflux,converr,databin)
+binlen = len(binflux)
+binmid = np.zeros(len(binlo))
+for i in range(0,len(binlo)): binmid[i] = (binlo[i]+binhi[i])/2.
+
+totalflux = 0
+for i in range(0,len(binflux)): totalflux = totalflux + binflux[i]*(binhi[i]-binlo[i])*1.e-4
 
 # Set statistical parameters    
 if 'logf' in end:
@@ -454,20 +472,28 @@ if 'logf' in end:
     bounds[e1+pos,1] = np.log(max(errhi**2) * bounds[e1+pos,1])
 
 # Set the cross section tables if not already set.
-wavei = max(wavehi) * 1.001
-wavef = min(wavelo) * 0.999
+# Note that the "default" assumes a particular set of tables.
+minDL = 0
+maxDL = 0.
+if 'deltaL' in end:
+    pos = end.index('deltaL')
+    minDL = bounds[e1+pos,0]*0.001
+    maxDL = bounds[e1+pos,1]*0.001
+    
+wavei = max(wavelo) + minDL
+wavef = min(wavehi) + maxDL
 if hires=='':
-    if wavei > 10000/5.0 and wavef > 10000/5.0:
-        if wavei > 10000/0.6: wavei = 10000./0.6
+    if wavei < 5.0 and wavef < 5.0:
+        if wavei < 0.6: wavei = 0.6
         hires = 'nir'
-    elif wavei > 10000/5.0 and wavef < 10000/5.0:
-        if wavei > 10000/0.6: wavei = 10000./0.6
-        if wavef < 10000/30.0: wavef = 10000./30.0
+    elif wavei < 5.0 and wavef > 5.0:
+        if wavei < 0.6: wavei = 0.6
+        if wavef > 30.0: wavef = 30.0
         hires = 'wide'
-    elif wavei < 10000/5.0 and wavef < 10000/5.0:
-        if wavef < 10000/30.0: wavef = 10000./30.0
+    elif wavei > 5.0 and wavef > 5.0:
+        if wavef > 30.0: wavef = 30.0
         hires = 'mir'
-
+        
 # Set model spectrum wavelength range
 
 # Compute hires spectrum wavelengths
@@ -482,8 +508,8 @@ resolv = (float)(opacshape[9])
 opaclen = (int)(np.floor(nwave/degrade)) # THIS SEEMED TO NEED A +1 IN CERTAIN CASES.
 opacwave = np.zeros(opaclen)
 for i in range(0,opaclen):
-    opacwave[i] = 10000./(lmin*np.exp(i*degrade/resolv))
-
+    opacwave[i] = lmin*np.exp(i*degrade/resolv)
+'''
 if wavehi[0]>opacwave[0] or wavelo[-1]<opacwave[-1]:
     trim = [i for i in range(0,len(wavehi)) if (wavehi[i]<opacwave[0] and wavelo[i]>opacwave[-1])]
     wavehi = wavehi[trim]
@@ -492,7 +518,7 @@ if wavehi[0]>opacwave[0] or wavelo[-1]<opacwave[-1]:
     errlo = errlo[trim]
     errhi = errhi[trim]
     obslength = len(trim)
-
+'''
 # Compute lores spectrum wavelengths
 opacfile = opacdir + '/gases/h2o.' + lores + '.dat'
 fopac = open(opacfile,'r')
@@ -504,9 +530,10 @@ resolvlo = (float)(opacshape[9])
 
 modwavelo = np.zeros(nwavelo)
 for i in range(0,nwavelo):
-    modwavelo[i] = 10000./(lminlo*np.exp(i/resolvlo))
-    
+    modwavelo[i] = lminlo*np.exp(i/resolvlo)
+
 # Set up wavelength ranges
+'''
 imin = np.where(opacwave<np.max(wavehi))[0]-1
 imax = np.where(opacwave<np.min(wavelo))[0]+2
 istart = np.where(opacwave<wavehi[0])[0]-1
@@ -514,47 +541,22 @@ iend = np.where(opacwave<wavelo[-1])[0]+2
 
 if len(imin)==0: imin = [0]
 elif imin[0]<0: imin[0] = 0
-if len(imax)==0: imax = [opacwave[-1]]
-elif imax[-1]>=len(opacwave): imax[-1] = opacwave[-1]
+if len(imax)==0: imax = [len(opacwave)-1]
+elif imax[-1]>=len(opacwave): imax[-1] = len(opacwave)-1
 if len(istart)==0: istart = [0]
 elif istart[0]<0: istart[0]=0
-if len(iend)==0: iend = [opacwave[-1]]
-elif iend[-1]>=len(opacwave): iend[-1] = opacwave[-1]
-
-if len(imin)==0: imin=[0]
-if len(imax)==0: imax=[len(opacwave)-1]
+if len(iend)==0: iend = [len(opacwave)-1]
+elif iend[-1]>=len(opacwave): iend[-1] = len(opacwave)-1
 
 # Truncated and band-limited spectrum that does not extend beyond the range of the observations
 modwave = opacwave[(int)(imin[0]):(int)(imax[0])]
 lenmod = len(modwave)
-
+'''
 # End set up model spectrum wavelength range
 
-# Process observations for retrieval
-
-# Separate out individual bands
-bandindex,bandhi,bandlo,bandflux,banderr = af.FindBands(wavehi,wavelo,flux,errhi)
-nband = len(bandhi)
-
-# Convolve the observations to account for effective resolving power or fit at lower resolving power
-convflux,converr = af.ConvBands(bandflux,banderr,dataconv)
-
-bandhifl = [item for sublist in bandhi for item in sublist]
-bandlofl = [item for sublist in bandlo for item in sublist]
-convfluxfl = [item for sublist in convflux for item in sublist]
-converrfl = [item for sublist in converr for item in sublist]
-
-# Bin the observations to fit a lower sampling resolution
-binhi,binlo,binflux,binerr = af.BinBands(bandhifl,bandlofl,convfluxfl,converrfl,databin)
-binlen = len(binflux)
-binmid = np.zeros(len(binhi))
-for i in range(0,len(binhi)): binmid[i] = (binhi[i]+binlo[i])/2.
-
-totalflux = 0
-for i in range(0,len(binflux)): totalflux = totalflux + binflux[i]*(1./binhi[i]-binlo[i])
-
 # Handle bands and optional polynomial fitting
-bindex, modindex, modwave = af.SliceModel(bandhi,bandlo,modwave)
+bindex, modindex, modwave = af.SliceModel(bandlo,bandhi,opacwave,minDL,maxDL)
+
 polyindex = -1
 for i in range(1,len(bindex)):
     if bindex[i][0] < bindex[i-1][0]:
@@ -562,16 +564,16 @@ for i in range(1,len(bindex)):
 if polyindex==-1: polyfit = False
 
 if polyfit:
-    normhi = bandhi[0]
     normlo = bandlo[0]
+    normhi = bandhi[0]
     normflux = bandflux[0]
     normerr = banderr[0]
-    for i in range(1,len(bandhi)):
-        normhi = np.r_[normhi,bandhi[i]]
+    for i in range(1,len(bandlo)):
         normlo = np.r_[normlo,bandlo[i]]
+        normhi = np.r_[normhi,bandhi[i]]
         normflux = np.r_[normflux,bandflux[i]]
         normerr = np.r_[normerr,banderr[i]]
-    normmid = (normhi+normlo)/2.
+    normmid = (normlo+normhi)/2.
 
     slennorm = []
     elennorm = []
@@ -592,15 +594,15 @@ else:
 if task=='Spectrum' or task=='Ensemble': modwave = opacwave
 
 # Get indices of the edges of the observation bins in the model spectrum
-bins = af.GetBins(modwave,binhi,binlo)
-ibinhi = bins[0]
-ibinlo = bins[1]
+bins = af.GetBins(modwave,binlo,binhi)
+ibinlo = bins[0]
+ibinhi = bins[1]
 
 # Needed to calculate the spectrum with the wavelength offset later.
-delmodwave = 1.e4/((1.e4/modwave)+0.001)
-delbins = af.GetBins(delmodwave,binhi,binlo)
-delibinhi = ibinhi-delbins[0]
-delibinlo = ibinlo-delbins[1]
+delmodwave = modwave + 0.001
+delbins = af.GetBins(delmodwave,binlo,binhi)
+delibinlo = delbins[0]-ibinlo
+delibinhi = delbins[1]-ibinhi
 
 mmw,rxsec = af.GetScaOpac(gases,plparams[g1:g2])
 mollist = af.GetMollist(gases)
@@ -827,7 +829,7 @@ def GetModel(x):
 
 # Likelihood function for "Retrieval" mode.
 
-def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
+def lnlike(x,ibinlo,ibinhi,binflux,binerrhi):
     params = plparams
     for i in range(0,len(nvars)):
         params[nvars[i]] = x[i]
@@ -893,8 +895,8 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
     '''
         
     # Adjust for wavelength calibration error
-    newibinhi = ibinhi + delibinhi*deltaL
     newibinlo = ibinlo + delibinlo*deltaL
+    newibinhi = ibinhi + delibinhi*deltaL
     
     # Bin and normalize spectrum
     if norm:
@@ -907,14 +909,15 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
         normspec = normspec * totalflux/np.sum(normspec)
         
     # normspec is the final forward model spectrum
-    binw = (newibinhi[1]-newibinhi[0])*(dataconv/databin)
+    binw = (newibinlo[1]-newibinlo[0])*(dataconv/databin)
     convmod = []
     for i in range(0,len(modindex)):
         convmod.append(af.ConvSpec(normspec[modindex[i][0]:modindex[i][1]],binw))
+        print(modindex[i][0],modindex[i][1],modindex[i][1]-modindex[i][0])
         
     convmodfl = [item for sublist in convmod for item in sublist]
-    binmod = af.BinModel(convmodfl,newibinhi,newibinlo)
-    
+    binmod = af.BinModel(convmodfl,newibinlo,newibinhi)
+
     iw = [i for i in range(0,len(binmod)) if ((i<polyindex or polyindex==-1) and binmod[i]!=0)]
     s2 = np.zeros(len(mastererr))
     for i in range(0,len(mastererr)): s2[i] = mastererr[i]*mastererr[i] + np.exp(lnf)
@@ -1006,7 +1009,7 @@ def lnprior(x,teff):
 
 # Probability function
 
-def lnprob(x,binshi,binslo,fluxrat,frathigh):
+def lnprob(x,binslo,binshi,fluxrat,frathigh):
     params = plparams
     for i in range(0,len(nvars)):
         params[nvars[i]] = x[i]
@@ -1068,7 +1071,7 @@ def lnprob(x,binshi,binslo,fluxrat,frathigh):
         return -np.inf, [mass,ctoo,fetoh,teff]
 
     # Check if an error returned a non-result.
-    prob = lp + lnlike(x,binshi,binslo,fluxrat,frathigh)
+    prob = lp + lnlike(x,binslo,binshi,fluxrat,frathigh)
     if np.isnan(prob):
         return -np.inf, [mass,ctoo,fetoh,teff]
     
@@ -1092,7 +1095,7 @@ plt.show(block=False)
 '''
 
 # Set up the MCMC run
-#print('Likelihood of input parameters: {0:f}'.format(lnlike(guess,ibinhi,ibinlo,binflux,binerr)))
+#print('Likelihood of input parameters: {0:f}'.format(lnlike(guess,ibinlo,ibinhi,binflux,binerr)))
 
 # I have no idea why, but the first time GetModel() runs, it spits out a blackbody spectrum.
 # This is "burn-in" step to avoid that and should not be commented out or removed.
@@ -1112,16 +1115,16 @@ if task=='Ensemble':
         theta_planet = 0.
         if 'Rad' in basic:
             pos = basic.index('Rad')
-            theta_planet = eplist[i][b1+pos]*6.371e8/dist/3.086e18
-            radfinal = eplist[i][b1+pos]
+            theta_planet = eplist[ii][b1+pos]*6.371e8/dist/3.086e18
+            radfinal = eplist[ii][b1+pos]
         elif 'RtoD' in basic:
             pos = basic.index('RtoD')
-            theta_planet = 10**eplist[i][b1+pos]
-            radfinal = 10**eplist[i][b1+pos]*dist*3.086e18/6.371e8
+            theta_planet = 10**eplist[ii][b1+pos]
+            radfinal = 10**eplist[ii][b1+pos]*dist*3.086e18/6.371e8
         elif 'RtoD2U' in basic:
             pos = basic.index('RtoD2U')
-            theta_planet = np.sqrt(eplist[i][b1+pos])*6.371e8/dist/3.086e18
-            radfinal = np.sqrt(eplist[i][b1+pos])
+            theta_planet = np.sqrt(eplist[ii][b1+pos])*6.371e8/dist/3.086e18
+            radfinal = np.sqrt(eplist[ii][b1+pos])
         else:
             theta_planet = 11.2*6.371e8/dist/3.086e18
             # Default radius = Jupiter
@@ -1155,7 +1158,7 @@ if task=='Ensemble':
 if task=='Retrieval':
     # Used to test the serial part of the code at the command line
     print('Test')
-    print('Likelihood of input parameters: {0:f}'.format(lnlike(guess,ibinhi,ibinlo,binflux,binerr)))
+    print('Likelihood of input parameters: {0:f}'.format(lnlike(guess,ibinlo,ibinhi,binflux,binerr)))
     #sys.exit()
 
     eps = 0.01
@@ -1182,11 +1185,11 @@ if task=='Retrieval':
     
     # MPI sampler
     if parallel:
-        sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,backend=reader,pool=pool,args=(ibinhi,ibinlo,binflux,binerr))
+        sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,backend=reader,pool=pool,args=(ibinlo,ibinhi,binflux,binerr))
     
     # Non-MPI sampler for testing purposes
     if not parallel:
-        sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,backend=reader,args=(ibinhi,ibinlo,binflux,binerr))
+        sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,backend=reader,args=(ibinlo,ibinhi,binflux,binerr))
     
     print('Walking...{0} {1} {2}...'.format(nwalkers,pllen,nsteps))
 
@@ -1518,14 +1521,14 @@ while True:
         deltaL = 0.0
         
     # Adjust for wavelength calibration error
-    newibinhi = ibinhi + delibinhi*deltaL
     newibinlo = ibinlo + delibinlo*deltaL        
-    binw = (newibinhi[1]-newibinhi[0])*(dataconv/databin)
+    newibinhi = ibinhi + delibinhi*deltaL
+    binw = (newibinlo[1]-newibinlo[0])*(dataconv/databin)
     convmod = af.ConvSpec(fincident,binw)
-    binmod = af.BinModel(convmod,newibinhi,newibinlo)
+    binmod = af.BinModel(convmod,newibinlo,newibinhi)
     resid = binflux-binmod
     
-    specout = 10000./binmid
+    specout = binmid
     xmin = min(specout)
     xmax = max(specout)
     xmin = xmin - 0.05*(xmax-xmin)
@@ -1583,7 +1586,7 @@ fig4.savefig(fig4name)
 foutnameb = 'modelspectra' + outfile + 'binned.dat'
 fout = open(foutnameb,'w')
 for i in range(0,len(specout)):
-    fout.write('{0:8.2f} {1:8.2f} {2:8.5e} 0.0 0.0 {2:8.5e}\n'.format(binhi[i],binlo[i],binmod[i]))
+    fout.write('{0:8.2f} {1:8.2f} {2:8.5e} 0.0 0.0 {2:8.5e}\n'.format(binlo[i],binhi[i],binmod[i]))
 fout.close()
 
 # Plot the FULL-RES model/retrieved spectrum against the observations.
@@ -1599,11 +1602,11 @@ plt.ylabel('Flux (cgs)',fontsize=14)
 plt.tick_params(axis='both',which='major',labelsize=12)
 
 # Compute the residuals by binning to the observations without downsampling for resolving power.
-wavemid = (wavehi+wavelo)/2.
-binw = (wavehi[0]-wavehi[1])
+wavemid = (wavelo+wavehi)/2.
+binw = (wavelo[1]-wavelo[0])
 convmod = af.ConvSpec(fincident,binw)
-newbinshi,newbinslo = af.GetBins(modwave,wavehi,wavelo)
-binmod = af.BinModel(convmod,newbinshi,newbinslo)
+newbinslo,newbinshi = af.GetBins(modwave,wavelo,wavehi)
+binmod = af.BinModel(convmod,newbinslo,newbinshi)
 
 convflux2 = convflux[0]
 converr2 = converr[0]
@@ -1612,9 +1615,9 @@ for i in range(1,len(convflux)):
     converr2 = np.r_[converr2,converr[i]]
 resid2 = convflux2-binmod
 
-ax.errorbar(10000./wavemid,convflux2,converr2,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
-ax.plot(10000./modwave,fincident,'-',linewidth=1,label='Retrieved Spectrum',c='b')
-ax.plot(10000./wavemid,resid2+ymin/2.,'-',linewidth=1,label='Residuals (convovled and offset)',c='r')
+ax.errorbar(wavemid,convflux2,converr2,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
+ax.plot(modwave,fincident,'-',linewidth=1,label='Retrieved Spectrum',c='b')
+ax.plot(wavemid,resid2+ymin/2.,'-',linewidth=1,label='Residuals (convovled and offset)',c='r')
 ax.plot([xmin,xmax],[0.,0.],'-',c='k')
 ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
 
@@ -1666,26 +1669,26 @@ else:
         print('Error: filter file not found.')
         
 if noisemode >= 0:
-    if (noisemode < 8 or noisemode == 11 or noisemode == 12) and (10000./modwave[0] > 5.01):
+    if (noisemode < 8 or noisemode == 11 or noisemode == 12) and (modwave[0] < 5.01):
         print('Requested spectral mode does not match input wavelengths.')
         sys.exit()
-    if (noisemode > 12 or noisemode == 9 or noisemode == 10) and (10000./modwave[-1] < 4.99):
+    if (noisemode > 12 or noisemode == 9 or noisemode == 10) and (modwave[-1] > 4.99):
         print('Requested spectral mode does not match input wavelengths.')
         sys.exit()
 
     print(starspec)
     calwave,flux_density,fnoise = AddNoise.addNoise(noisemode,mode,opacwave,spectrum,noise_params,starspec)
         
-    calhi = np.zeros(len(calwave))
     callo = np.zeros(len(calwave))
-    calhi[0] = calwave[0] + (calwave[0]-calwave[1])/2.
-    if calhi[0] < 10000./modwave[0]: calhi[0] = 10000./modwave[0] + deltaL/1000.
-    callo[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
-    if callo[-1] > 10000./modwave[-1]: callo[-1] = 10000./modwave[-1] + deltaL/1000.
+    calhi = np.zeros(len(calwave))
+    callo[0] = calwave[0] + (calwave[0]-calwave[1])/2.
+    if callo[0] < modwave[0]: callo[0] = modwave[0] + deltaL/1000.
+    calhi[-1] = calwave[-1] + (calwave[-2]-calwave[-1])/2.
+    if calhi[-1] > modwave[-1]: calhi[-1] = modwave[-1] + deltaL/1000.
     
     for i in range(0,len(calwave)-1):
-        calhi[i+1] = (calwave[i]+calwave[i+1])/2. + deltaL/1000.
-        callo[i] = (calwave[i]+calwave[i+1])/2. + deltaL/1000.
+        callo[i+1] = (calwave[i]+calwave[i+1])/2. + deltaL/1000.
+        calhi[i]   = (calwave[i]+calwave[i+1])/2. + deltaL/1000.
         
     obsdepth = flux_density
     if mode<=1: noise = fnoise*obsdepth
@@ -1696,7 +1699,7 @@ if noisemode >= 0:
     ftest = open(foutname,'w')
     
     for i in range(0,len(calwave)-1):
-        ftest.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(10000./(calhi[i]-deltaL/1000.),10000./(callo[i]-deltaL/1000.),obsdepth[i],noise[i],obs_flux[i]))
+        ftest.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(callo[i]-deltaL/1000.,calhi[i]-deltaL/1000.,obsdepth[i],noise[i],obs_flux[i]))
 
     # Plot the JWST mode against the observations.
         
@@ -1705,7 +1708,7 @@ if noisemode >= 0:
     fig2 = plt.figure(figsize=(10,7))
     ax = fig2.add_subplot(111)
 
-    snip = [i for i in range(0,len(modwave)) if calwave[0] < 10000./modwave[i] < calwave[-1]]
+    snip = [i for i in range(0,len(modwave)) if calwave[0] > modwave[i] < calwave[-1]]
     
     xmin = min(calwave)
     xmax = max(calwave)
@@ -1722,7 +1725,7 @@ if noisemode >= 0:
     plt.ylabel('Flux (cgs)',fontsize=14)
     plt.tick_params(axis='both',which='major',labelsize=12)
     
-    ax.plot(10000./modwave[snip],fincident[snip],'-',linewidth=1,label='Model Spectrum',c='k')
+    ax.plot(modwave[snip],fincident[snip],'-',linewidth=1,label='Model Spectrum',c='k')
     ax.errorbar(calwave,obsdepth,noise,capsize=3,marker='o',linestyle='',linewidth=1,label=outmode,c='b')
     # Alternate plot as a line without errorbars.
     #ax.plot(calwave,obsdepth,'-',linewidth=1,label=outmode,c='b')
