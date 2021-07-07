@@ -1464,8 +1464,6 @@ void Planet::getOpacProf(double rxsec, vector<double> wavelist, vector<double> a
   
   if(table=="hires"){
     opacprof = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
-    wval = log(wavelist[0]/wmin)*res/degrade;
-    wstart = (int)wval;
   }
   if(table=="lores") opacproflo = vector<vector<double> >(wavenslo.size(),vector<double>(nlayer,0));
   int nmol = nspec;
@@ -1487,6 +1485,12 @@ void Planet::getOpacProf(double rxsec, vector<double> wavelist, vector<double> a
   
   // loop over wavelengths
   for(int m=0; m<wavelist.size(); m++){
+    int jw = m;
+    if(table=="hires"){
+      wval = log(wavelist[m]/wmin)*res/degrade + 0.000001;
+      jw = (int)wval;
+    }
+    
     // loop over T-P profile
     for(int j=0; j<nlayer; j++){
       double tl = log10(0.5*(tprof[j]+tprof[j+1]));
@@ -1520,18 +1524,18 @@ void Planet::getOpacProf(double rxsec, vector<double> wavelist, vector<double> a
       xsec[3] = 0.;
       if(table=="hires"){
 	for(int iii=0; iii<nmol; iii++){
-	  xsec[0] += mastertable[jp][jt][m+wstart][iii]*abund[iii];
-	  xsec[1] += mastertable[jp][jt+1][m+wstart][iii]*abund[iii];
-	  xsec[2] += mastertable[jp+1][jt][m+wstart][iii]*abund[iii];
-	  xsec[3] += mastertable[jp+1][jt+1][m+wstart][iii]*abund[iii];
+	  xsec[0] += mastertable[jp][jt][jw][iii]*abund[iii];
+	  xsec[1] += mastertable[jp][jt+1][jw][iii]*abund[iii];
+	  xsec[2] += mastertable[jp+1][jt][jw][iii]*abund[iii];
+	  xsec[3] += mastertable[jp+1][jt+1][jw][iii]*abund[iii];
 	}
       }
       if(table=="lores"){
 	for(int iii=0; iii<nmol; iii++){
-	  xsec[0] += lotable[jp][jt][m+wstart][iii]*abund[iii];
-	  xsec[1] += lotable[jp][jt+1][m+wstart][iii]*abund[iii];
-	  xsec[2] += lotable[jp+1][jt][m+wstart][iii]*abund[iii];
-	  xsec[3] += lotable[jp+1][jt+1][m+wstart][iii]*abund[iii];
+	  xsec[0] += lotable[jp][jt][jw][iii]*abund[iii];
+	  xsec[1] += lotable[jp][jt+1][jw][iii]*abund[iii];
+	  xsec[2] += lotable[jp+1][jt][jw][iii]*abund[iii];
+	  xsec[3] += lotable[jp+1][jt+1][jw][iii]*abund[iii];
 	}
       }
       
@@ -1556,7 +1560,7 @@ void Planet::getSca(double rxsec, vector<double> wavelist, string table)
   
   for(int m=0; m<wavelist.size(); m++){
     for(int j=0; j<nlayer; j++){
-      double nu = c*wavelist[m];
+      double nu = c*10000./wavelist[m];
       
       if(table=="hires") scatable[m][j] = rxsec * pow(nu/5.0872638e14,4.0);
       if(table=="lores") scatablelo[m][j] = rxsec * pow(nu/5.0872638e14,4.0);
