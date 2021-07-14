@@ -6,3 +6,6 @@ user/T-P_functions.py~
 user/.#T-P_functions.py
 user/defaults.py~
 *.py~
+src/ApolloFunctions.test-statements.py
+Apollo.cluster.2021-06-25.py
+Apollo.2021-06-16.py

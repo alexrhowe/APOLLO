@@ -27,7 +27,11 @@ def FindBands(wavehi,wavelo,flux,err):
 
     for i in range(0,bi+1):
         whibands[i] = np.asarray(whibands[i])
+        # whibands[i][0] = 1.e4/((1.e4/whibands[i][0])-0.001)
+        # whibands[i][-1] = 1.e4/((1.e4/whibands[i][-1])+0.001)
         wlobands[i] = np.asarray(wlobands[i])
+        # wlobands[i][0] = 1.e4/((1.e4/wlobands[i][0])-0.001)
+        # wlobands[i][0] = 1.e4/((1.e4/wlobands[i][0])-0.001)
         fbands[i] = np.asarray(fbands[i])
         ebands[i] = np.asarray(ebands[i])
     
@@ -79,6 +83,8 @@ def SliceModel(bandhi,bandlo,modwave):
     bindex = []
     modindex = [[0]]
     for i in range(0,len(bandhi)):
+        # bstart = 1e4/(1e4/bandhi[i][0] - 0.01)
+        # bend = 1e4/(1e4/bandlo[i][-1] + 0.01)
         bstart = bandhi[i][0]
         bend = bandlo[i][-1]
         js = np.where(modwave<bstart)[0][0]-1
@@ -116,20 +122,21 @@ def NormSpec(wave,flux,startsnorm,endsnorm):
     
     return flux/poly(wave)
 
-def ConvSpec(flux,binw):
+def ConvSpec(flux, bin_width):
     
-    binw6 = binw * 6.0
-    sigmab = binw/2.35
-    kwid = (int)(binw6)
-    kernel = np.zeros(kwid)
+    # The factor of 6 is a somewhat arbitrary choice to get
+    # a wide enough window for the Gaussian kernel
+    kernel_width = bin_width * 6.0
+    stdev = bin_width / 2.35
     
-    for i in range(0,kwid):
-        kernel[i] = np.exp(-0.5*(i-binw6/2.)*(i-binw6/2.)/sigmab/sigmab)
-    kernel = kernel/np.sum(kernel)
+    kernel_remainder, kernel_integer = np.modf(kernel_width)
 
-    convflux = np.convolve(flux,kernel,mode='same')
-    #convflux = convolve(flux,kernel,boundary='extend')
-    
+    kernel_range = np.arange(kernel_integer)+kernel_remainder - (kernel_width/2)
+    kernel = np.exp(-0.5*(kernel_range/stdev)**2)
+    kernel = kernel / np.sum(kernel)
+
+    convflux = np.convolve(flux, kernel, mode='same')
+
     return convflux
 
 def BinSpec(flux,err,wavehi,wavelo,binw):
@@ -188,12 +195,12 @@ def BinSpec(flux,err,wavehi,wavelo,binw):
     return binflux,binerr,binhi,binlo
     
 def BinModel(flux,binhi,binlo):
+
     binflux = np.zeros(len(binhi))
     fbinhi = (1.-np.modf(binhi)[0])-0.5
     fbinlo = np.modf(binlo)[0]-0.5
     binw = binlo-binhi
     for i in range(0,len(binhi)):
-        
         binflux[i] = np.sum(flux[(int)(np.ceil(binhi[i])):(int)(np.ceil(binlo[i]))])
         binflux[i] = binflux[i] + fbinhi[i]*flux[(int)(np.floor(binhi[i]))]
         if (int)(np.ceil(binlo[i]))==len(flux):

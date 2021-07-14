@@ -11,7 +11,6 @@ from user.defaults import *
 from user import TP_profiles
 import emcee
 import schwimmbad
-
 import matplotlib
 # Used on Discover because the GUI does not work there. Comment out to use 'Manual' mode.
 #matplotlib.use('pdf')
@@ -182,6 +181,8 @@ while(True):
         if len(line)>1: opacdir = line[1]
         
 # End read in settings
+
+cluster_mode = (task == 'Retrieval' and parallel)
 
 # Output file name: Object name, type of observation, # of parameters, and # of steps.
 if short:
@@ -399,9 +400,11 @@ for i in range(0,obslength):
     errlo[i] = obslines[i].split()[3]
     errhi[i] = obslines[i].split()[4]
 
+wavemid = (wavehi+wavelo)/2.
 # End of read in observations
 
-# Set statistical parameters    
+# Set statistical parameters
+'''
 if 'logf' in end:
     pos = end.index('logf')
     plparams[e1+pos] = np.log(max(errhi**2))
@@ -410,6 +413,7 @@ if 'logf' in end:
     sigma[e1+pos] = abs(mu[e1+pos])/10.
     bounds[e1+pos,0] = np.log(min(errhi**2) * bounds[e1+pos,0])
     bounds[e1+pos,1] = np.log(max(errhi**2) * bounds[e1+pos,1])
+'''
 
 # Set the cross section tables if not already set.
 wavei = max(wavehi) * 1.001
@@ -465,25 +469,24 @@ for i in range(0,nwavelo):
     modwavelo[i] = 10000./(lminlo*np.exp(i/resolvlo))
     
 # Set up wavelength ranges
-imin = np.where(opacwave<np.max(wavehi))[0]-1
-imax = np.where(opacwave<np.min(wavelo))[0]+2
+wavehi_deltaL_allowance = 1e4/(1e4/np.max(wavehi) - 0.01)
+wavelo_deltaL_allowance = 1e4/(1e4/np.min(wavelo) + 0.01)
+imin = np.where(opacwave<wavehi_deltaL_allowance)[0]-1
+imax = np.where(opacwave<wavelo_deltaL_allowance)[0]+2
 istart = np.where(opacwave<wavehi[0])[0]-1
 iend = np.where(opacwave<wavelo[-1])[0]+2
 
 if len(imin)==0: imin = [0]
 elif imin[0]<0: imin[0] = 0
-if len(imax)==0: imax = [opacwave[-1]]
-elif imax[-1]>=len(opacwave): imax[-1] = opacwave[-1]
+if len(imax)==0: imax = [len(opacwave)-1]
+elif imax[-1]>=len(opacwave): imax[-1] = len(opacwave)-1
 if len(istart)==0: istart = [0]
-elif istart[0]<0: istart[0]=0
-if len(iend)==0: iend = [opacwave[-1]]
-elif iend[-1]>=len(opacwave): iend[-1] = opacwave[-1]
-
-if len(imin)==0: imin=[0]
-if len(imax)==0: imax=[len(opacwave)-1]
+elif istart[0]<0: istart[0] = 0
+if len(iend)==0: iend = [len(opacwave)-1]
+elif iend[-1]>=len(opacwave): iend[-1] = len(opacwave)-1
 
 # Truncated and band-limited spectrum that does not extend beyond the range of the observations
-modwave = opacwave[(int)(imin[0]):(int)(imax[0])]
+modwave = np.array(opacwave)[(int)(imin[0]):(int)(imax[0])]
 lenmod = len(modwave)
 
 # End set up model spectrum wavelength range
@@ -512,7 +515,8 @@ totalflux = 0
 for i in range(0,len(binflux)): totalflux = totalflux + binflux[i]*(1./binhi[i]-binlo[i])
 
 # Handle bands and optional polynomial fitting
-bindex, modindex, modwave = af.SliceModel(bandhi,bandlo,modwave)
+bindex, modindex, modwave2 = af.SliceModel(bandhi,bandlo,modwave)
+
 polyindex = -1
 for i in range(1,len(bindex)):
     if bindex[i][0] < bindex[i-1][0]:
@@ -547,7 +551,7 @@ else:
     
 # End of band handling
 
-if task=='Spectrum' or task=='Ensemble': modwave = opacwave
+# if task=='Spectrum' or task=='Ensemble': modwave = opacwave
 
 # Get indices of the edges of the observation bins in the model spectrum
 bins = af.GetBins(modwave,binhi,binlo)
@@ -690,7 +694,7 @@ def GetModel(x):
         pos = basic.index('Log(g)')
         params1[1] = x[b1+pos]
     else:
-        params1[1] = 4.1
+        params1[1] = 4.19
 
     # Cloud deck handling
     if 'Cloud_Base' in clouds:
@@ -725,6 +729,11 @@ def GetModel(x):
             params1[11] = params1[11]
             params1[12] = params1[12] + 6.
         if cloudmod==2: params1[13] = params1[12] + params1[13]
+
+    if cloudmod==4:
+        for i in range(0,4): params1[i+10] = x[c1+i]
+        params1[11] = params1[11] + 6.
+        params1[12] = params1[12] + 6.
         
     tpprof = np.zeros(natm)
     # Gray atmosphere approximation
@@ -742,8 +751,8 @@ def GetModel(x):
         if atmtype in TP_functions:
             tplong = (TP_functions[atmtype])(*tpprof,
                                              num_layers_final=vres,
-                                             P_min=minP,
-                                             P_max=maxP)
+                                             P_min=minP-6,
+                                             P_max=maxP-6)
             # Compute spectrum
             planet.set_Params(params1,abund,tplong)
             specflux = planet.get_Spectrum()
@@ -757,9 +766,9 @@ def GetModel(x):
                 for i in range(0,vres):
                     if tpprof[0]<75.: tplong[i]=75.
                     elif tpprof[0]>4000.: tplong[i]=4000.
-                    else: tplong[i]=tpprof[0]            
+                    else: tplong[i]=tpprof[0]
             else:
-                # compute cubic spline T-P profile
+            # compute cubic spline T-P profile
                 tplong = np.zeros(vres)
                 if natm<=4: f = interp1d(profin,tpprof,kind='linear')
                 else: f = interp1d(profin,tpprof,kind='cubic')
@@ -767,6 +776,10 @@ def GetModel(x):
                     tplong[i] = f(maxP + (minP-maxP)*i/(float)(vres-1))
                     if(tplong[i]<75.): tplong[i]=75.
                     if(tplong[i]>4000.): tplong[i]=4000.
+            # The layer-by-layer profile is input from largest to smallest
+            # pressures, so we need to reverse the profile before passing
+            # it to the C++ side.
+            tplong = tplong[::-1]
 
             # Compute spectrum
             planet.set_Params(params1,abund,tplong)
@@ -775,6 +788,32 @@ def GetModel(x):
             # Compute spectrum
             planet.set_Params(params1,abund,tpprof)
             specflux = planet.get_Spectrum()
+
+    if 'scaleJ' in end:
+        pos = end.index('scaleJ')
+        scaleJ = x[e1+pos]
+    else:
+        scaleJ = 1.0
+    if 'scaleH' in end:
+        pos = end.index('scaleH')
+        scaleH = x[e1+pos]
+    else:
+        scaleH = 1.0
+    if 'scaleK' in end:
+        pos = end.index('scaleK')
+        scaleK = x[e1+pos]
+    else:
+        scaleK = 1.0
+
+
+    specflux = np.asarray(specflux)
+    # ada: scale band data
+    JH_boundary = 1e4/1.4
+    HK_boundary = 1e4/1.9
+    wavelengths = 1e4/modwave
+    specflux = np.where(wavelengths>JH_boundary, specflux*scaleJ, specflux)
+    specflux = np.where(np.logical_and(wavelengths<JH_boundary, wavelengths>HK_boundary), specflux*scaleH, specflux)
+    specflux = np.where(wavelengths<HK_boundary, specflux*scaleK, specflux)
             
     teff = planet.get_Teff()
     if task!='Ensemble': print('Teff: ',teff)
@@ -818,11 +857,13 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
         deltaL = params[e1+pos]
     else:
         deltaL = 0.0
+    '''
     if 'logf' in end:
         pos = end.index('logf')
         lnf = params[e1+pos]
     else:
         lnf = 1.0
+    '''
 
     # Multiply by solid angle and collecting area
     fincident = np.zeros(len(modflux))
@@ -837,8 +878,11 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
         fincident = modflux
         
     # Adjust for wavelength calibration error
+    print("deltaL just before re-binning is {}".format(deltaL))
     newibinhi = ibinhi + delibinhi*deltaL
     newibinlo = ibinlo + delibinlo*deltaL
+    # newibinhi = ibinhi
+    # newibinlo = ibinlo
     
     # Bin and normalize spectrum
     if norm:
@@ -853,15 +897,16 @@ def lnlike(x,ibinhi,ibinlo,binflux,binerrhi):
     # normspec is the final forward model spectrum
     binw = (newibinhi[1]-newibinhi[0])*(dataconv/databin)
     convmod = []
-    for i in range(0,len(modindex)):
-        convmod.append(af.ConvSpec(normspec[modindex[i][0]:modindex[i][1]],binw))
         
-    convmodfl = [item for sublist in convmod for item in sublist]
+    # convmodfl = [item for sublist in convmod for item in sublist]
+    convmodfl = af.ConvSpec(normspec,binw)
     binmod = af.BinModel(convmodfl,newibinhi,newibinlo)
     
     iw = [i for i in range(0,len(binmod)) if ((i<polyindex or polyindex==-1) and binmod[i]!=0)]
     s2 = np.zeros(len(mastererr))
-    for i in range(0,len(mastererr)): s2[i] = mastererr[i]*mastererr[i] + np.exp(lnf)
+    # for i in range(0,len(mastererr)): s2[i] = mastererr[i]*mastererr[i] + np.exp(lnf)
+    for i in range(0,len(mastererr)): s2[i] = mastererr[i]*mastererr[i]
+    
     likelihood = 0
     for i in iw:
         likelihood = likelihood + (masternorm[i]-binmod[i])**2/s2[i] + np.log(2.*np.pi*s2[i])
@@ -885,8 +930,9 @@ def lnprior(x,teff):
     priors = np.zeros(ndim)
     for i in range(0,ndim):
         if not bounds[i,0] <= x[i] <= bounds[i,1]:
-            if not e1 <= i < e2:
-                print('Out of Bound: {0:s} {1} {2} {3}'.format(pnames[nvars[i]],x[i],bounds[i,0],bounds[i,1]))
+            # if not e1 <= i < e2:
+            #     print('Out of Bound: {0:s} {1} {2} {3}'.format(pnames[nvars[i]],x[i],bounds[i,0],bounds[i,1]))
+            print('Out of Bound: {0:s} {1} {2} {3}'.format(pnames[nvars[i]],x[i],bounds[i,0],bounds[i,1]))
             return -np.inf
         if smooth and nvars[i]==a2:
             priors[i] = invgamma.pdf(x[i],1,scale=5.e-5) # gamma with inverse gamma function prior, alpha=1, beta=5.e-5
@@ -934,6 +980,20 @@ def lnprior(x,teff):
         for i in range(a1+1,a2-1):
             penalty = penalty - 0.5/gamma*(params[i+1] - 2*params[i] + params[i-1])**2
         penalty = penalty - 0.5*np.log(2*np.pi*gamma)*(a2-a1)
+
+    # ada: Add a check to make sure the Madhusudhan-Seager T-P parametrization has correct monotonicity.
+    if atmtype == "power_linear":
+        if (params[a2-3] < 0) or (params[a2-2] < 0) or (params[a2-1] < 0):
+            print("Negative temperatures in one or more proposed parameters.")
+            return -np.inf
+        # ada: Removing the condition that the middle temperature node be >= the TOA temperature means we can have an inversion layer.
+        elif params[a2-2] < params[a2-3]:
+            print("Prior failed: profile set up for monotonically increasing temperature structure only. T_mid={}K < T_TOA={}K.".format(params[a2-2],params[a2-3]))
+            return -np.inf
+        elif params[a2-1] < params[a2-2]:
+            print("Prior failed: profile set up for  monotonically increasing temperature structure only. T_max={}K < T_mid={}K.".format(params[a2-1],params[a2-2]))
+            return -np.inf
+
     # These lines weight the parameters based on the width of the prior if the boundaries cut off a significant amount of the normal distribution
     # However, it's not clear how important they are to comparing relative likelihoods
     #priors[1] = priors[1]/0.520
@@ -1080,8 +1140,10 @@ if task=='Ensemble':
 if task=='Retrieval':
     # Used to test the serial part of the code at the command line
     print('Test')
+
     print('Likelihood of input parameters: {0:f}'.format(lnlike(guess,ibinhi,ibinlo,binflux,binerr)))
-    #sys.exit()
+    print('Prior probability of input parameters: {0:f}'.format(lnprior(guess, planet.get_Teff())))
+    # sys.exit()
 
     eps = 0.01
     for i in range(0,len(guess)):
@@ -1119,8 +1181,8 @@ if task=='Retrieval':
     else: foutname = outdir + outfile + 'dat'
     fchain = open(foutname,'w')
 
-    if printfull: fchain.write('{0:d} {1:d} {2:d}'.format(nwalkers,nsteps,ndim+4))
-    else: fchain.write('{0:d} {1:d} {2:d}'.format(nwalkers,(int)(nsteps/10),ndim+4))
+    if printfull: fchain.write('{0:d} {1:d} {2:d}'.format(nwalkers,nsteps,ndim+5))
+    else: fchain.write('{0:d} {1:d} {2:d}'.format(nwalkers,(int)(nsteps/10),ndim+5))
 
     if atmtype=='Layers': fchain.write(' {0:d} {1:f} {2:f}\n'.format(a2-a1,minP-6.,maxP-6.))
     else: fchain.write('\n')
@@ -1130,7 +1192,7 @@ if task=='Retrieval':
             fchain.write('Rad ')
         else:
             fchain.write('{0:s} '.format(pnames[i]))
-    fchain.write('Mass C/O [Fe/H] Teff\n')
+    fchain.write('Mass C/O [Fe/H] Teff LogProb\n')
 
     # Actual MCMC run, and Write samples to output file
 
@@ -1143,10 +1205,10 @@ if task=='Retrieval':
         coords = reader.get_last_sample().coords
         blobs = reader.get_blobs()[i]
         likli = reader.get_log_prob()[i]
-        if max(likli) > maxlikli:
+        if (max(likli) > maxlikli) or (i == 0):
             j = np.argmax(likli)
             maxlikli = likli[j]
-            medianparams = coords[j]
+            finalfreeparams = coords[j]
         print(reader.get_log_prob())
         if i%100==0 or printfull: print('Step number {0:d}'.format(i+1))
         if printfull or i>=nsteps*0.9:
@@ -1160,11 +1222,13 @@ if task=='Retrieval':
                         fchain.write('{0:f} '.format(coords[i2][i3]))
                 for i3 in range(0,len(blobs[i2])):
                     fchain.write('{0:f} '.format(blobs[i2][i3]))
-                fchain.write('\n')
+                fchain.write('{0:f}\n'.format(likli[i2]))
         i = i+1
     fchain.close()
 
-    finalparams = medianparams
+    # finalparams = medianparams
+    finalparams = plparams
+    finalparams[nvars] = finalfreeparams
     
     # End of MCMC run
 
@@ -1282,63 +1346,76 @@ if task=='Retrieval':
     for i in range(0,len(gnames)): grange[i]=0.99
     brange = np.zeros(len(bnames))
     for i in range(0,len(bnames)): brange[i]=0.99
-    
-    fig = corner.corner(gsamples3,labels=gnames,range=grange,plot_datapoints=False,labelsize=24)
-    fig.subplots_adjust(left=0.10,bottom=0.10,wspace=0,hspace=0)
-    fig1name = 'plots' + outfile + 'gases.png'
-    fig.savefig(fig1name)
-    
-    fig2 = corner.corner(bsamples4,labels=bnames,range=brange,plot_datapoints=False,labelsize=24)
-    fig2.subplots_adjust(left=0.10,bottom=0.10,wspace=0,hspace=0)
-    fig2name = 'plots' + outfile + 'basic.png'
-    fig2.savefig(fig2name)
-    
-    # Plot the T-P profile
-    
-    plist = np.zeros(anum)
-    for i in range(0,anum): plist[i] = 10**(maxP + (minP-maxP)*i/(anum-1)) * 1.e-6
-    tlist = np.percentile(tsamples3,[16,50,84],axis=0)
 
-    fig3 = plt.figure(figsize=(8,6))
-    ax = fig3.add_subplot(111)
-    plt.axis((0,3000,10**(maxP-6.),10**(minP-6.)))
-    ax.set_yscale('log')
-    plt.xlabel('T (K)',fontsize=14)
-    plt.ylabel('P (bar)', fontsize=14)
-
-    ax.fill_betweenx(plist,tlist[0],tlist[2],facecolor='#ff8080')
-    ax.plot(tlist[0],plist,c='r')
-    ax.plot(tlist[1],plist,c='k')
-    ax.plot(tlist[2],plist,c='r')
-
-    fig3name = 'plots' + outfile + 'TP.png'
-    fig3.savefig(fig3name)
+    if not cluster_mode:
+        fig = corner.corner(gsamples3,labels=gnames,range=grange,plot_datapoints=False,labelsize=24)
+        fig.subplots_adjust(left=0.10,bottom=0.10,wspace=0,hspace=0)
+        fig1name = 'plots' + outfile + 'gases.png'
+        fig.savefig(fig1name)
+        
+        fig2 = corner.corner(bsamples4,labels=bnames,range=brange,plot_datapoints=False,labelsize=24)
+        fig2.subplots_adjust(left=0.10,bottom=0.10,wspace=0,hspace=0)
+        fig2name = 'plots' + outfile + 'basic.png'
+        fig2.savefig(fig2name)
+        
+        # Plot the T-P profile
+        
+        plist = np.zeros(anum)
+        for i in range(0,anum): plist[i] = 10**(maxP + (minP-maxP)*i/(anum-1)) * 1.e-6
+        tlist = np.percentile(tsamples3,[16,50,84],axis=0)
+        
+        fig3 = plt.figure(figsize=(8,6))
+        ax = fig3.add_subplot(111)
+        plt.axis((0,3000,10**(maxP-6.),10**(minP-6.)))
+        ax.set_yscale('log')
+        plt.xlabel('T (K)',fontsize=14)
+        plt.ylabel('P (bar)', fontsize=14)
+        
+        ax.fill_betweenx(plist,tlist[0],tlist[2],facecolor='#ff8080')
+        ax.plot(tlist[0],plist,c='r')
+        ax.plot(tlist[1],plist,c='k')
+        ax.plot(tlist[2],plist,c='r')
+        
+        fig3name = 'plots' + outfile + 'TP.png'
+        fig3.savefig(fig3name)
     
     # End of retrieval plots
 
     # Write parameter file of best fit model
+    finallower, medianparams_all, finalupper = np.percentile(sampler.chain[:,first:,:],[16,50,84],axis=0)[:,0]
+    #finallowersigma = medianparams - finallower
+    #finaluppersigma = finalupper - medianparams
+    # finalsigma = finaluppersigma
+    # finalbounds = bounds
 
-    finalparams2 = np.percentile(sampler.chain[:,first:,:],[50,84],axis=0)[:,0]
+    # finalsigma2 = np.zeros(ndim)
+    # for i in range(0,ndim):
+    #     finallowersigma2[i] = (float)(finalparams2[1][i]) - (float)(finalparams2[0][i])
+    #     finaluppersigma2[i] = (float)(finalparams2[2][i]) - (float)(finalparams2[1][i])
 
-    finalsigma2 = np.zeros(ndim)
-    for i in range(0,ndim):
-        finalsigma2[i] = (float)(finalparams2[1][i]) - (float)(finalparams2[0][i])
 
-    finalparams = np.zeros(pllen)
-    finalsigma = np.zeros(pllen)
+    MLEparams = np.zeros(pllen)
+    medianparams = np.zeros(pllen)
+    finallowersigma = np.zeros(pllen)
+    finaluppersigma = np.zeros(pllen)
     finalbounds = np.zeros((pllen,2))
     for i in range(0,pllen):
         if i in nvars:
             j = nvars.index(i)
-            finalparams[i] = finalparams2[0][j]
-            finalsigma[i] = finalsigma2[j]
+            MLEparams[i] = finalparams[i]
+            medianparams[i] = medianparams_all[j]
+            finallowersigma[i] = medianparams_all[j] - finallower[j]
+            finaluppersigma[i] = finalupper[j] - medianparams_all[j]
             finalbounds[i,0] = bounds[j,0]
             finalbounds[i,1] = bounds[j,1]
         else:
-            finalparams[i] = plparams[i]
-            finalsigma[i] = 0.
-            finalbounds[i,0] = finalparams[i]
-            finalbounds[i,1] = finalparams[i]
+            MLEparams[i] = plparams[i]
+            medianparams[i] = plparams[i]
+            finallowersigma[i] = 0.
+            finaluppersigma[i] = 0.
+            finalbounds[i,0] = medianparams[i]
+            finalbounds[i,1] = medianparams[i]
+    finalsigma = finaluppersigma
         
     outparams = '.' + outfile + 'retrieved.dat'
     ffout = open(outparams,'w')
@@ -1359,37 +1436,42 @@ if task=='Retrieval':
     ffout.write('Tables       {0:s} {1:s}\n'.format(hires,lores))
     if not outmode=='': ffout.write('Output_Mode {0:s}\n'.format(outmode))
     
-    ffout.write('Parameter    Initial    Mu    Sigma    Min    Max\n')
+    ffout.write('Parameter    MLE    Mu    Sigma    Min    Max    Lower    Higher\n')
     if b1>=0:
         ffout.write('Basic\n')
         for i in range(b1,b2):
             if pnames[i]=='Rad' and 'RtoD2U' in basic:
-                finalsigma[i] = np.sqrt((float)(finalparams[i])) - np.sqrt((float)(finalparams[i]))
-                ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],np.sqrt((float)(finalparams[i])),np.sqrt((float)(finalparams[i])),finalsigma[i],np.sqrt(finalbounds[i,0]),np.sqrt(finalbounds[i,1])))
+                finallowersigma[i] = np.sqrt((float)(finalparams2[1][i])) - np.sqrt((float)(finalparams2[0][i]))
+                finaluppersigma[i] = np.sqrt((float)(finalparams2[2][i])) - np.sqrt((float)(finalparams2[1][i]))
+                finalsigma[i] = finaluppersigma[i]
+                ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}    {6:8.2f}    {7:8.2f}\n'.format(pnames[i],np.sqrt((float)(MLEparams[i])),np.sqrt((float)(medianparams[i])),finalsigma[i],np.sqrt(finalbounds[i,0]),np.sqrt(finalbounds[i,1]),finallowersigma[i],finaluppersigma[i]))
             else:
-                ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))
+                ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}    {6:8.2f}    {7:8.2f}\n'.format(pnames[i],(float)(MLEparams[i]),(float)(medianparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1],finallowersigma[i],finaluppersigma[i]))
 
     if g1>=0:
         ffout.write('Gases     {0:s}\n'.format(gases[0]))
         for i in range(g1,g2):
-            ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))
+            ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}    {6:8.2f}    {7:8.2f}\n'.format(pnames[i],(float)(MLEparams[i]),(float)(medianparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1],finallowersigma[i],finaluppersigma[i]))
 
     if a1>=0:
         ffout.write('Atm       {0:s}\n'.format(atmtype))
         if smooth:
             for i in range(a1,a2+1):
-                ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))
+                ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}    {6:8.2f}    {7:8.2f}\n'.format(pnames[i],(float)(MLEparams[i]),(float)(medianparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1],finallowersigma[i],finaluppersigma[i]))
         else:
             for i in range(a1,a2):
-                ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))            
+                ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}    {6:8.2f}    {7:8.2f}\n'.format(pnames[i],(float)(MLEparams[i]),(float)(medianparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1],finallowersigma[i],finaluppersigma[i]))            
                 
     if c1>=0:
         ffout.write('Clouds    {0:d}    {1:s}\n'.format(cloudmod,hazestr))
         for i in range(c1,c2):
-            ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))
+            ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}    {6:8.2f}    {7:8.2f}\n'.format(pnames[i],(float)(MLEparams[i]),(float)(medianparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1],finallowersigma[i],finaluppersigma[i]))
 
     if e1>=0:
-        ffout.write('End\ndeltaL	       0.      0.     1.0  -10.0    10.0\nlogf	       1.      1.     0.1    0.01  100.')
+        ffout.write('End\n')
+        for i in range(e1,e2):
+            ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}    {6:8.2f}    {7:8.2f}\n'.format(pnames[i],(float)(MLEparams[i]),(float)(medianparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1],finallowersigma[i],finaluppersigma[i]))
+        # ffout.write('End\ndeltaL  	       0.      0.     1.0  -10.0    10.0\nlogf	       1.      1.     0.1    0.01  100.')
 
 # End of retrieval-specific section
     
@@ -1440,42 +1522,45 @@ while True:
         deltaL = 0.0
         
     # Adjust for wavelength calibration error
-    newibinhi = ibinhi + delibinhi*deltaL
-    newibinlo = ibinlo + delibinlo*deltaL        
+    # newibinhi = ibinhi + delibinhi*deltaL
+    # newibinlo = ibinlo + delibinlo*deltaL
+    newibinhi = ibinhi
+    newibinlo = ibinlo
     binw = (newibinhi[1]-newibinhi[0])*(dataconv/databin)
     convmod = af.ConvSpec(fincident,binw)
     binmod = af.BinModel(convmod,newibinhi,newibinlo)
-    resid = binflux-binmod
-    
-    specout = 10000./binmid
-    xmin = min(specout)
-    xmax = max(specout)
-    xmin = xmin - 0.05*(xmax-xmin)
-    xmax = xmax + 0.05*(xmax-xmin)
-    
-    yref = max(max(binmod),max(binflux))
-    ymin = -0.20 * yref
-    ymax =  1.05 * yref
 
-    # Plot the BINNED model/retrieved spectrum against the observations.
-    
-    fig4 = plt.figure(figsize=(10,7))
-    ax = fig4.add_subplot(111)
-    plt.axis((xmin,xmax,ymin,ymax))
-    
-    plt.xlabel('$\lambda$ ($\mu$m)',fontsize=14)
-    plt.ylabel('Flux (cgs)',fontsize=14)
-    plt.tick_params(axis='both',which='major',labelsize=12)
-    
-    ax.errorbar(specout,binflux,binerr,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
-    ax.plot(specout,binmod,'-',linewidth=1,label='Retrieved Spectrum',c='b')
-    ax.plot(specout,resid+ymin/2.,'-',linewidth=1,label='Residuals (offset)',c='r')
-    ax.plot([xmin,xmax],[0.,0.],'-',c='k')
-    ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
-    
-    plt.legend(fontsize=12)
-    plt.show()
-    
+    resid = binflux-binmod
+    specout = 10000./binmid
+
+    if not cluster_mode:
+        xmin = min(specout)
+        xmax = max(specout)
+        xmin = xmin - 0.05*(xmax-xmin)
+        xmax = xmax + 0.05*(xmax-xmin)
+
+        yref = max(max(binmod),max(binflux))
+        ymin = -0.20 * yref
+        ymax =  1.05 * yref
+
+        # Plot the BINNED model/retrieved spectrum against the observations.
+        fig4 = plt.figure(figsize=(10,7))
+        ax = fig4.add_subplot(111)
+        plt.axis((xmin,xmax,ymin,ymax))
+
+        plt.xlabel('$\lambda$ ($\mu$m)',fontsize=14)
+        plt.ylabel('Flux (cgs)',fontsize=14)
+        plt.tick_params(axis='both',which='major',labelsize=12)
+
+        ax.errorbar(specout,binflux,binerr,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
+        ax.plot(specout,binmod,'-',linewidth=1,label='Retrieved Spectrum',c='b')
+        ax.plot(specout,resid+ymin/2.,'-',linewidth=1,label='Residuals (offset)',c='r')
+        ax.plot([xmin,xmax],[0.,0.],'-',c='k')
+        ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
+
+        plt.legend(fontsize=12)
+        plt.show()
+
     if not manual:
         print('Computing final outputs.')
         break
@@ -1496,9 +1581,12 @@ while True:
             pos = pnames.index(psplit[0])
             finalparams[pos] = float(psplit[1])
     
+
 if task=='Spectrum': outfile = '/' + name + '.Spectrum.'
-fig4name = 'plots' + outfile + 'binned.png'
-fig4.savefig(fig4name)
+if not cluster_mode:
+    fig4name = 'plots' + outfile + 'binned.png'
+    fig4.savefig(fig4name)
+
 
 # Create an output file of the BINNED model/retrieved spectrum.
 
@@ -1509,39 +1597,40 @@ for i in range(0,len(specout)):
 fout.close()
 
 # Plot the FULL-RES model/retrieved spectrum against the observations.
-    
-fig5name = 'plots' + outfile + 'fullres.png'
 
-fig5 = plt.figure(figsize=(10,7))
-ax = fig5.add_subplot(111)
-plt.axis((xmin,xmax,ymin,ymax))
+if not cluster_mode:
+    fig5name = 'plots' + outfile + 'fullres.png'
 
-plt.xlabel('$\lambda$ ($\mu$m)',fontsize=14)
-plt.ylabel('Flux (cgs)',fontsize=14)
-plt.tick_params(axis='both',which='major',labelsize=12)
+    fig5 = plt.figure(figsize=(10,7))
+    ax = fig5.add_subplot(111)
+    plt.axis((xmin,xmax,ymin,ymax))
+
+    plt.xlabel('$\lambda$ ($\mu$m)',fontsize=14)
+    plt.ylabel('Flux (cgs)',fontsize=14)
+    plt.tick_params(axis='both',which='major',labelsize=12)
 
 # Compute the residuals by binning to the observations without downsampling for resolving power.
-wavemid = (wavehi+wavelo)/2.
 binw = (wavehi[0]-wavehi[1])
 convmod = af.ConvSpec(fincident,binw)
 newbinshi,newbinslo = af.GetBins(modwave,wavehi,wavelo)
 binmod = af.BinModel(convmod,newbinshi,newbinslo)
 
-convflux2 = convflux[0]
-converr2 = converr[0]
-for i in range(1,len(convflux)):
-    convflux2 = np.r_[convflux2,convflux[i]]
-    converr2 = np.r_[converr2,converr[i]]
-resid2 = convflux2-binmod
+if not cluster_mode:
+    convflux2 = convflux[0]
+    converr2 = converr[0]
+    for i in range(1,len(convflux)):
+        convflux2 = np.r_[convflux2,convflux[i]]
+        converr2 = np.r_[converr2,converr[i]]
+    resid2 = convflux2-binmod
 
-ax.errorbar(10000./wavemid,convflux2,converr2,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
-ax.plot(10000./modwave,fincident,'-',linewidth=1,label='Retrieved Spectrum',c='b')
-ax.plot(10000./wavemid,resid2+ymin/2.,'-',linewidth=1,label='Residuals (convovled and offset)',c='r')
-ax.plot([xmin,xmax],[0.,0.],'-',c='k')
-ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
+    ax.errorbar(10000./wavemid,convflux2,converr2,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
+    ax.plot(10000./modwave,fincident,'-',linewidth=1,label='Retrieved Spectrum',c='b')
+    ax.plot(10000./wavemid,resid2+ymin/2.,'-',linewidth=1,label='Residuals (convovled and offset)',c='r')
+    ax.plot([xmin,xmax],[0.,0.],'-',c='k')
+    ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
 
-plt.legend(fontsize=12)
-fig5.savefig(fig5name)
+    plt.legend(fontsize=12)
+    fig5.savefig(fig5name)
 
 # Create an output file of the FULL-RES model/retrieved spectrum.
 

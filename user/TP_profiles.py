@@ -6,10 +6,10 @@ from user.defaults import minP, maxP, minT, maxT, tgray, vres
 #     return np.ones(vres)*T
 
 
-def verbatim(*input_Ts, num_layers_final=vres, P_min=minP, P_max=maxP):
-    return layers
+# def verbatim(*input_Ts, num_layers_final=vres, P_min=minP, P_max=maxP):
+#     return layers
 
-
+'''
 def interpolate(*input_Ts, num_layers_final=vres, P_min=minP, P_max=maxP):
     num_layers_initial = len(input_Ts)
     input_Ps = np.linspace(P_max, P_min, num=num_layers_initial)
@@ -25,24 +25,24 @@ def interpolate(*input_Ts, num_layers_final=vres, P_min=minP, P_max=maxP):
     output_Ts = np.where(output_Ts > maxT, maxT, output_Ts)
 
     return output_Ts
-
+'''
 
 def power_linear(exponent, logPiso, T0, T_mid, T_max,
                  num_layers_final=vres, P_min=minP, P_max=maxP):
-  logP0 = minP
+  logP0 = P_min
   T_frac = exponent * (T_mid-T0)/(T_max-T_mid)
   logPmid = (logP0+T_frac*logPiso) / (1+T_frac)
   alpha2 = (logPiso-logPmid) / (T_max-T_mid)
   alpha1 = exponent * (T_mid-T0)**(1-1/exponent) * alpha2
-  # Flipped around to work with Mark Marley's radiative transfer algorithm.
+
   input_Ps = np.linspace(P_min, P_max, num=num_layers_final)
 
-  output_Ts = np.zeros_like(input_Ps) * T0
-  output_Ts = np.where((input_Ps>logP0) & (logP<logPmid),
-                       T0 + ((logP-logP0)/alpha1)**exponent,
+  output_Ts = np.ones_like(input_Ps) * T0
+  output_Ts = np.where((input_Ps>logP0) & (input_Ps<logPmid),
+                       T0 + ((input_Ps-logP0)/alpha1)**exponent,
                        output_Ts)
-  output_Ts = np.where((input_Ps>logPmid) & (logP<logPiso),
-                       T_mid + ((logP-logPmid)/alpha2),
+  output_Ts = np.where((input_Ps>logPmid) & (input_Ps<logPiso),
+                       T_mid + ((input_Ps-logPmid)/alpha2),
                        output_Ts)
   output_Ts = np.where(input_Ps >= logPiso,
                        T_max,

@@ -101,6 +101,12 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
       haze[2] = plparams[12];
       haze[3] = plparams[13];
     }
+    if(cloudmod==4){
+      haze[0] = plparams[10];
+      haze[1] = pow(10,plparams[11]);
+      haze[2] = pow(10,plparams[12]);
+      haze[3] = plparams[13];
+    }
   }
 
   if(tprofmode==0){  
@@ -109,10 +115,10 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
     
     tpprof = vector<double>(nlevel,0);
     hprof = vector<double>(nlevel,0);
-    // Flipped around to work with Mark Marley's radiative transfer algorithm.
-    for(int i=0; i<nlevel; i++){
-      tpprof[i] = tpprofile[nlevel-1-i];
-    }
+
+    // Note: the tpprofile -> tpprof hand-off is essentially
+    // vestigial at this point.
+    tpprof = tpprofile;
     getProfLayer(tpprof);
   }
   else{
@@ -1123,11 +1129,19 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	doMie = false;
 	
 	if(hazetype!=0 && cloudmod>1){
-	  doMie = true;
-	  
-	  absorbxsec = atmoshires->getAbsXsec(wavel,haze[1]);
-	  scatterxsec = atmoshires->getScaXsec(wavel,haze[1]);
-	  hazexsec = absorbxsec + scatterxsec;
+	  if(cloudmod!=4){
+	    absorbxsec = atmoshires->getAbsXsec(wavel,haze[1]);
+	    scatterxsec = atmoshires->getScaXsec(wavel,haze[1]);
+	    hazexsec = absorbxsec + scatterxsec;
+
+	    if(mode<=1 && streams==2){
+	      doMie = true;
+	    }
+	  }
+	  // ada: For the power-law opacity cloud model, we use the hazexsec variable as the wavelength scaling (haze[1] is the power-law exponent). haze[0] is a constant optical depth per unit length, or linear attenuation coefficient, for the cloud.
+	  else{
+	    hazexsec = pow(wavel, haze[0]);
+	  }
 	  
 	  // Slab cloud model
 	  if(cloudmod==2){
@@ -1155,6 +1169,16 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	    hazeabund = haze[0]*gauss(log10(prprof[j]),haze[2],haze[3]);
 	    dlc = dl;
 	  }
+
+	  if(cloudmod==4){
+	    // ada: Since the optical depth profile is set directly in this model, rather than the haze density, we don't need the path length.
+	    double scale = (haze[1]*(haze[2]-1))/haze[2];
+	    hazeabund = exp((prprof[j+1]-haze[1])/scale) - exp((prprof[j]-haze[1])/scale);
+	    if(hazeabund > 100.){
+	      hazeabund = 100.;
+	    }
+	    dlc = 1.;
+	  }
 	  
 	  hazedepth = hazexsec * hazeabund;
 	  absdepth = absorbxsec * hazeabund;
@@ -1180,6 +1204,10 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	  }
 	  // Hemispheric approximation to the asymmetry parameter integral.
 	  asym[i][j] = (forwardfrac-backwardfrac)*scatterxsec / (sca + (forwardfrac+backwardfrac)*scatterxsec);
+	}
+	// ada: For the power-law opacity cloud model, the single-scattering albedo is a free parameter (constant in wavelength).
+	else if(cloudmod==4){
+	  w0[i][j] = haze[3];
 	}
 	else w0[i][j] = sca*nden / (dtau + hazedepth);
 	// w0 is layer single scattering albedo with layer 0 on top
@@ -1226,10 +1254,19 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	doMie = false;
 	
 	if(hazetype!=0 && cloudmod>1){
-	  doMie = true;
-	  absorbxsec = atmoslores->getAbsXsec(wavel,haze[1]);
-	  scatterxsec = atmoslores->getScaXsec(wavel,haze[1]);
-	  hazexsec = absorbxsec + scatterxsec;
+	  if(cloudmod!=4){
+	    absorbxsec = atmoslores->getAbsXsec(wavel,haze[1]);
+	    scatterxsec = atmoslores->getScaXsec(wavel,haze[1]);
+	    hazexsec = absorbxsec + scatterxsec;
+
+	    if(mode<=1 && streams==2){
+	      doMie = true;
+	    }
+	  }
+	  // ada: For the power-law opacity cloud model, we use the hazexsec variable as the wavelength scaling (haze[1] is the power-law exponent). haze[0] is a constant optical depth per unit length, or linear attenuation coefficient, for the cloud.
+	  else{
+	    hazexsec = pow(wavel, haze[0]);
+	  }
 	  
 	  // Slab cloud model
 	  if(cloudmod==2){
@@ -1257,6 +1294,16 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	    hazeabund = haze[0]*gauss(log10(prprof[j]),haze[2],haze[3]);
 	    dlc = dl;
 	  }
+
+	  if(cloudmod==4){
+	    // ada: Since the optical depth profile is set directly in this model, rather than the haze density, we don't need the path length.
+	    dlc = 1.;
+	    double scale = (haze[1]*(haze[2]-1))/haze[2];
+	    hazeabund = exp((prprof[j+1]-haze[1])/scale) - exp((prprof[j]-haze[1])/scale);
+	    if(hazeabund > 100.){
+	      hazeabund = 100.;
+	    }
+	  }
 	  
 	  hazedepth = hazexsec * hazeabund;
 	  absdepth = absorbxsec * hazeabund;
@@ -1282,6 +1329,10 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	  }
 	  // Hemispheric approximation to the asymmetry parameter integral.
 	  asymlo[i][j] = (forwardfrac-backwardfrac)*scatterxsec / (sca + (forwardfrac+backwardfrac)*scatterxsec);
+	}
+	// ada: For the power-law opacity cloud model, the single-scattering albedo is a free parameter (constant in wavelength).
+	else if(cloudmod==4){
+	  w0lo[i][j] = haze[3];
 	}
 	else w0lo[i][j] = sca*nden / (dtau + hazedepth);
 	// w0 is layer single scattering albedo with layer 0 on top
@@ -1327,14 +1378,20 @@ void Planet::transTauProf(vector<double> wavens, string table)
 	  double hazeabund = 0.;
 	  
 	  if(hazetype!=0 && cloudmod>1){
-	    double absorbxsec = atmoshires->getAbsXsec(wavel,haze[1]);
-	    double scatterxsec = atmoshires->getScaXsec(wavel,haze[1]);
 	    double hazexsec;
-	    if(mode<=1 && streams==2){
-	      hazexsec = absorbxsec;
+
+	    if (cloudmod!=4){
+	      double absorbxsec = atmoshires->getAbsXsec(wavel,haze[1]);
+	      double scatterxsec = atmoshires->getScaXsec(wavel,haze[1]);
+	      hazexsec = absorbxsec + scatterxsec;
+	    }
+	    // ada: For the power-law opacity cloud model, we use the hazexsec variable as the wavelength scaling (haze[1] is the power-law exponent). haze[0] is a constant optical depth per unit length, or linear attenuation coefficient, for the cloud.
+	    if(cloudmod==4){
+	      hazexsec = pow(wavel, haze[0]);
+	    }
+	    if(mode<=1 && streams==2 && cloudmod!=4){
 	      doMie = true;
 	    }
-	    else hazexsec = absorbxsec + scatterxsec;
 	    
 	    // Slab cloud model
 	    if(cloudmod==2){
@@ -1362,6 +1419,16 @@ void Planet::transTauProf(vector<double> wavens, string table)
 	      hazeabund = haze[0]*gauss(log10(prprof[j]),haze[2],haze[3]);
 	      hazedepth = hazexsec * hazeabund;
 	      dlc = dl;
+	    }
+	    if(cloudmod==4){
+	      // ada: Since the optical depth profile is set directly in this model, rather than the haze density, we don't need the path length.
+	      dlc = 1.;
+	      double scale = (haze[1]*(haze[2]-1))/haze[2];
+	      hazeabund = exp((prprof[j+1]-haze[1])/scale) - exp((prprof[j]-haze[1])/scale);
+	      if(hazeabund > 100.){
+		hazeabund = 100.;
+	      }
+	      hazedepth = hazexsec * hazeabund;
 	    }
 	    
 	    tauprof[ii][i] += hazedepth * dlgrid[i][j] * dlc;
@@ -1404,14 +1471,20 @@ void Planet::transTauProf(vector<double> wavens, string table)
 	  double hazeabund = 0.;
 	  
 	  if(hazetype!=0 && cloudmod>1){
-	    double absorbxsec = atmoslores->getAbsXsec(wavel,haze[1]);
-	    double scatterxsec = atmoslores->getScaXsec(wavel,haze[1]);
 	    double hazexsec;
-	    if(mode<=1 && streams==2){
-	      hazexsec = absorbxsec;
+
+	    if (cloudmod!=4){
+	    double absorbxsec = atmoshires->getAbsXsec(wavel,haze[1]);
+	    double scatterxsec = atmoshires->getScaXsec(wavel,haze[1]);
+	    hazexsec = absorbxsec + scatterxsec;
+	    }
+	    // ada: For the power-law opacity cloud model, we use the hazexsec variable as the wavelength scaling (haze[1] is the power-law exponent). haze[0] is a constant optical depth per unit length, or linear attenuation coefficient, for the cloud.
+	    if(cloudmod==4){
+	      hazexsec = pow(wavel, haze[0]);
+	    }
+	    if(mode<=1 && streams==2 && cloudmod!=4){
 	      doMie = true;
 	    }
-	    else hazexsec = absorbxsec + scatterxsec;
 	    
 	    // Slab cloud model
 	    if(cloudmod==2){
@@ -1439,6 +1512,16 @@ void Planet::transTauProf(vector<double> wavens, string table)
 	      hazeabund = haze[0]*gauss(log10(prprof[j]),haze[2],haze[3]);
 	      hazedepth = hazexsec * hazeabund;
 	      dlc = dl;
+	    }
+	    if(cloudmod==4){
+	      // ada: Since the optical depth profile is set directly in this model, rather than the haze density, we don't need the path length.
+	      dlc = 1.;
+	      double scale = (haze[1]*(haze[2]-1))/haze[2];
+	      hazeabund = exp((prprof[j+1]-haze[1])/scale) - exp((prprof[j]-haze[1])/scale);
+	      if(hazeabund > 100.){
+		hazeabund = 100.;
+	      }
+	      hazedepth = hazexsec * hazeabund;
 	    }
 	    
 	    tauproflo[ii][i] += hazedepth * dlgrid[i][j] * dlc;
