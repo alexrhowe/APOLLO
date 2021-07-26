@@ -141,7 +141,7 @@ double Planet::getTeff(){
   double totflux=0.;
 
   for(int i=1; i<wavenslo.size(); i++){
-    totflux += tdepthlo[i]*(wavenslo[i]-wavenslo[i-1]);
+    totflux += tdepthlo[i]*(wavenslo[i]-wavenslo[i-1])/10000.;
   }
 
   // Compute Teff based on the Stefan-Boltzmann Law.
