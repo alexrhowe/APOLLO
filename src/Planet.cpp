@@ -120,7 +120,7 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
     tpprof = tpprofile;
     tprof = vector<double>(nlevel);
     taulist = vector<double>(nlevel);
-    for(int i=0; i<=nlevel; i++){
+    for(int i=0; i<nlevel; i++){
       taulist[i] = 0.001 * pow(10,10.*i/100.);
     }
     getProfParam(tpprof);

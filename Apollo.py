@@ -57,6 +57,7 @@ Opacities directory
 Various example files included
 '''
 
+#----------------------------------------------------------------------------------------#
 # Read in input file
 
 settings = 'examples/example.resolved.dat'  # Bundled example file
@@ -89,6 +90,7 @@ for i in range(0,len(lines1)):
 fparams.close()
 fparams = open(settings,'r')
 
+#----------------------------------------------------------------------------------------#
 # Default Settings
 
 name = 'example'     # Bundled example file
@@ -139,6 +141,7 @@ cloudmod = 0         # No Clouds
 
 hazelist = ['None','H2SO4','Polyacetylene','Tholin','Corundum','Enstatite','Forsterite','Iron','KCl','Na2S','NH3Ice','Soot','H2OCirrus','H2OIce','ZnS']
 
+#----------------------------------------------------------------------------------------#
 # Read in settings
 
 nlines = 0
@@ -230,6 +233,50 @@ if short:
 else:
     outfile = '/' + name + '.' + modestr + '.' + str(pllen) + 'params' + str(int(nsteps/1000)) + 'k.'
 
+#----------------------------------------------------------------------------------------#
+# Read in observations
+
+print('Reading in observations.')
+fobs = open(datain,'r')
+
+obslines = fobs.readlines()
+obslength = len(obslines)
+
+wavelo = np.zeros(obslength)
+wavehi = np.zeros(obslength)
+flux = np.zeros(obslength)
+errlo = np.zeros(obslength)
+errhi = np.zeros(obslength)
+
+for i in range(0,obslength):
+    wavelo[i] = obslines[i].split()[0]
+    wavehi[i] = obslines[i].split()[1]
+    flux[i] = obslines[i].split()[5]
+    errlo[i] = obslines[i].split()[3]
+    errhi[i] = obslines[i].split()[4]
+
+# End of read in observations
+
+#----------------------------------------------------------------------------------------#
+# Process observations for retrieval
+
+# Separate out individual bands
+bandindex,bandlo,bandhi,bandflux,banderr = af.FindBands(wavelo,wavehi,flux,errhi)
+nband = len(bandhi)
+
+# Convolve the observations to account for effective resolving power or fit at lower resolving power
+convflux,converr = af.ConvBands(bandflux,banderr,dataconv)
+
+# Bin the observations to fit a lower sampling resolution
+binlo,binhi,binflux,binerr = af.BinBands(bandlo,bandhi,convflux,converr,databin)
+binlen = len(binflux)
+binmid = np.zeros(len(binlo))
+for i in range(0,len(binlo)): binmid[i] = (binlo[i]+binhi[i])/2.
+
+totalflux = 0
+for i in range(0,len(binflux)): totalflux = totalflux + binflux[i]*(binhi[i]-binlo[i])*1.e-4
+
+#----------------------------------------------------------------------------------------#
 # Read in model parameters
 
 print('Reading in parameters.')
@@ -318,6 +365,9 @@ for j in range(0,len(lines)):
             clouds.append(line[0])
             cnum = cnum+1
         if state==4:
+            if line[0][0]=='S':
+                snum = int(line[0][1:])
+                if snum<0 or snum>=nband: pass
             end.append(line[0])
             enum = enum+1
         plparams[i] = (float)(line[1])
@@ -396,71 +446,6 @@ if atmtype == 'Layers':
     bounds[a1:a2,:] = np.log10(bounds[a1:a2,:])
 '''
 
-# End of read in model parameters
-# End of read in input file
-
-'''
-C++ functions from wrapPlanet_layer and wrapPlanet_auto
-
-MakePlanet(switches,modwave,modwavelo,mollist,opacdir.encode('utf-8'),hires.encode('utf-8'),lores.encode('utf-8'))
-switches  = [mode, cloudmod, hazetype, streams], instruct the code which options to use
-modwave   = wavelengths over which to compute the model
-modwavelo = wavelengths to use for computing the bolometric luminosity and effective temperature
-opacdir   = directory where the cross section tables are found
-hires     = set of cross section tables to use for the model
-lores     = set of cross section tables to use for the effective temperature
-
-set_Params(params1,abund,tpprof)
-params1 = array of parameters describing the planet model that aren't included in the other groups
-abund   = table of molcular abundances, the filler gas being first
-tpprof  = a temperature profile for wrapPlanet_layer or a set of temperature profile parameters for wrapPlanet_auto
-
-get_Spectrum()
-get_Teff
-'''
-
-# Read in observations
-# Note: header contains info about star needed for JWST pipeline
-
-print('Reading in observations.')
-fobs = open(datain,'r')
-
-obslines = fobs.readlines()
-obslength = len(obslines)
-
-wavelo = np.zeros(obslength)
-wavehi = np.zeros(obslength)
-flux = np.zeros(obslength)
-errlo = np.zeros(obslength)
-errhi = np.zeros(obslength)
-
-for i in range(0,obslength):
-    wavelo[i] = obslines[i].split()[0]
-    wavehi[i] = obslines[i].split()[1]
-    flux[i] = obslines[i].split()[5]
-    errlo[i] = obslines[i].split()[3]
-    errhi[i] = obslines[i].split()[4]
-
-# End of read in observations
-
-# Process observations for retrieval
-
-# Separate out individual bands
-bandindex,bandlo,bandhi,bandflux,banderr = af.FindBands(wavelo,wavehi,flux,errhi)
-nband = len(bandhi)
-
-# Convolve the observations to account for effective resolving power or fit at lower resolving power
-convflux,converr = af.ConvBands(bandflux,banderr,dataconv)
-
-# Bin the observations to fit a lower sampling resolution
-binlo,binhi,binflux,binerr = af.BinBands(bandlo,bandhi,convflux,converr,databin)
-binlen = len(binflux)
-binmid = np.zeros(len(binlo))
-for i in range(0,len(binlo)): binmid[i] = (binlo[i]+binhi[i])/2.
-
-totalflux = 0
-for i in range(0,len(binflux)): totalflux = totalflux + binflux[i]*(binhi[i]-binlo[i])*1.e-4
-
 # Set statistical parameters    
 if 'logf' in end:
     pos = end.index('logf')
@@ -471,6 +456,10 @@ if 'logf' in end:
     bounds[e1+pos,0] = np.log(min(errhi**2) * bounds[e1+pos,0])
     bounds[e1+pos,1] = np.log(max(errhi**2) * bounds[e1+pos,1])
 
+# End of read in model parameters
+# End of read in input file
+
+#----------------------------------------------------------------------------------------#
 # Set the cross section tables if not already set.
 # Note that the "default" assumes a particular set of tables.
 minDL = 0
@@ -494,6 +483,7 @@ if hires=='':
         if wavef > 30.0: wavef = 30.0
         hires = 'mir'
         
+#----------------------------------------------------------------------------------------#
 # Set model spectrum wavelength range
 
 # Compute hires spectrum wavelengths
@@ -554,6 +544,7 @@ lenmod = len(modwave)
 '''
 # End set up model spectrum wavelength range
 
+#----------------------------------------------------------------------------------------#
 # Handle bands and optional polynomial fitting
 bindex, modindex, modwave = af.SliceModel(bandlo,bandhi,opacwave,minDL,maxDL)
 
@@ -588,8 +579,6 @@ if polyfit:
 else:
     masternorm = binflux
     mastererr = binerr
-    
-# End of band handling
 
 if task=='Spectrum' or task=='Ensemble': modwave = opacwave
 
@@ -603,6 +592,11 @@ delmodwave = modwave + 0.001
 delbins = af.GetBins(delmodwave,binlo,binhi)
 delibinlo = delbins[0]-ibinlo
 delibinhi = delbins[1]-ibinhi
+    
+# End of band handling
+
+#----------------------------------------------------------------------------------------#
+# Create Planet and read in opacity tables
 
 mmw,rxsec = af.GetScaOpac(gases,plparams[g1:g2])
 mollist = af.GetMollist(gases)
@@ -615,7 +609,6 @@ if atmtype == 'Parametric' and natm != 5:
     print('Error: wrong parameterization of T-P profile.')
     sys.exit()
 
-# Create Planet and read in opacity tables
 planet = wrapPlanet.PyPlanet()
 print('Haze type:',hazestr)
 print('Cloud model:',cloudmod)
@@ -633,6 +626,9 @@ guess  = guess[nvars]
 mu     = mu[nvars]
 sigma  = sigma[nvars]
 bounds = bounds[nvars]
+
+#----------------------------------------------------------------------------------------#
+# Ensemble setup
 
 if task=='Ensemble':
 
@@ -693,6 +689,27 @@ planet.MakePlanet(switches,modwave,modwavelo,mollist,opacdir.encode('utf-8'),hir
 print('Setup complete.')
 # End of setup
 
+'''
+C++ functions from wrapPlanet_layer and wrapPlanet_auto
+
+MakePlanet(switches,modwave,modwavelo,mollist,opacdir.encode('utf-8'),hires.encode('utf-8'),lores.encode('utf-8'))
+switches  = [mode, cloudmod, hazetype, streams], instruct the code which options to use
+modwave   = wavelengths over which to compute the model
+modwavelo = wavelengths to use for computing the bolometric luminosity and effective temperature
+opacdir   = directory where the cross section tables are found
+hires     = set of cross section tables to use for the model
+lores     = set of cross section tables to use for the effective temperature
+
+set_Params(params1,abund,tpprof)
+params1 = array of parameters describing the planet model that aren't included in the other groups
+abund   = table of molcular abundances, the filler gas being first
+tpprof  = a temperature profile for wrapPlanet_layer or a set of temperature profile parameters for wrapPlanet_auto
+
+get_Spectrum()
+get_Teff
+'''
+
+#----------------------------------------------------------------------------------------#
 # Function to compute forward model
 
 def GetModel(x):
@@ -810,6 +827,15 @@ def GetModel(x):
             # Compute spectrum
             planet.set_Params(params1,abund,tpprof)
             specflux = planet.get_Spectrum()
+
+    for i in range(0,nband):
+        sname = 'S' + str(i)
+        if sname in end:
+            pos = end.index(sname)
+            bandscale = x[e1+pos]
+            print(i,bandscale,len(specflux),bindex[i])
+            for j in range(bindex[i][0],bindex[i][1]):
+                specflux[j] = specflux[j] * bandscale
             
     teff = planet.get_Teff()
     if task!='Ensemble': print('Teff: ',teff)
@@ -827,6 +853,7 @@ def GetModel(x):
 
 # End of GetModel function
 
+#----------------------------------------------------------------------------------------#
 # Likelihood function for "Retrieval" mode.
 
 def lnlike(x,ibinlo,ibinhi,binflux,binerrhi):
@@ -938,6 +965,7 @@ def lnlike(x,ibinlo,ibinhi,binflux,binerrhi):
     
 # End of likelihood function
 
+#----------------------------------------------------------------------------------------#
 # Prior probability
 
 def lnprior(x,teff):
@@ -1007,6 +1035,7 @@ def lnprior(x,teff):
 
 # End of prior function
 
+#----------------------------------------------------------------------------------------#
 # Probability function
 
 def lnprob(x,binslo,binshi,fluxrat,frathigh):
@@ -1079,6 +1108,7 @@ def lnprob(x,binslo,binshi,fluxrat,frathigh):
 
 # End of probability function
 
+#----------------------------------------------------------------------------------------#
 # Sets up the runtime plot in lnlike(). Part of the testing suite.
 '''
 figa = plt.figure()
@@ -1094,11 +1124,12 @@ figa.canvas.draw()
 plt.show(block=False)
 '''
 
+#----------------------------------------------------------------------------------------#
 # Set up the MCMC run
 #print('Likelihood of input parameters: {0:f}'.format(lnlike(guess,ibinlo,ibinhi,binflux,binerr)))
 
 # I have no idea why, but the first time GetModel() runs, it spits out a blackbody spectrum.
-# This is "burn-in" step to avoid that and should not be commented out or removed.
+# This is a "burn-in" step to avoid that and should not be commented out or removed.
 testspectrum = GetModel(plparams)
 
 if task=='Ensemble':
@@ -1155,6 +1186,9 @@ if task=='Ensemble':
 
 # End of ensemble-specific section
 
+#----------------------------------------------------------------------------------------#
+# Set up retrieval
+
 if task=='Retrieval':
     # Used to test the serial part of the code at the command line
     print('Test')
@@ -1210,6 +1244,7 @@ if task=='Retrieval':
             fchain.write('{0:s} '.format(pnames[i]))
     fchain.write('Mass C/O [Fe/H] Teff Likelihood\n')
 
+    #----------------------------------------------------------------------------------------#
     # Actual MCMC run, and Write samples to output file
 
     maxlikli = 0.
@@ -1239,7 +1274,6 @@ if task=='Retrieval':
                 for i3 in range(0,len(blobs[i2])):
                     fchain.write('{0:f} '.format(blobs[i2][i3]))
                 fchain.write('{0:f}\n'.format(likli[i2]/len(masternorm)))
-                fchain.write('\n')
         i = i+1
     fchain.close()
 
@@ -1255,6 +1289,7 @@ if task=='Retrieval':
 
     print("Retrieval Complete")
 
+    #----------------------------------------------------------------------------------------#
     # Create waterfall plots of results
 
     gn1i = [i for i in nvars if g1<=i]
@@ -1395,6 +1430,7 @@ if task=='Retrieval':
     
     # End of retrieval plots
 
+    #----------------------------------------------------------------------------------------#
     # Write parameter file of best fit model
 
     finalparams2 = np.percentile(sampler.chain[:,first:,:],[50,84],axis=0)[:,0]
@@ -1470,10 +1506,11 @@ if task=='Retrieval':
     if e1>=0:
         ffout.write('End\n')
         for i in range(e1,e2):
-            ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))
+            ffout.write('{0:s}    {1:8.4f}    {2:8.4f}    {3:8.4f}    {4:8.4f}    {5:8.4f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))
 
 # End of retrieval-specific section
     
+#----------------------------------------------------------------------------------------#
 # Plot the best fit spectrum or spectrum requested at the command line
     
 if task=='Spectrum':
@@ -1549,7 +1586,7 @@ while True:
     plt.tick_params(axis='both',which='major',labelsize=12)
     
     ax.errorbar(specout,binflux,binerr,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
-    ax.plot(specout,binmod,'-',linewidth=1,label='Retrieved Spectrum',c='b')
+    ax.plot(specout,binmod,'-',linewidth=1,label='Retrieved Spectrum',c='#8080ff')
     ax.plot(specout,resid+ymin/2.,'-',linewidth=1,label='Residuals (offset)',c='r')
     ax.plot([xmin,xmax],[0.,0.],'-',c='k')
     ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
@@ -1581,6 +1618,7 @@ if task=='Spectrum': outfile = '/' + name + '.Spectrum.'
 fig4name = 'plots' + outfile + 'binned.png'
 fig4.savefig(fig4name)
 
+#----------------------------------------------------------------------------------------#
 # Create an output file of the BINNED model/retrieved spectrum.
 
 foutnameb = 'modelspectra' + outfile + 'binned.dat'
@@ -1616,7 +1654,7 @@ for i in range(1,len(convflux)):
 resid2 = convflux2-binmod
 
 ax.errorbar(wavemid,convflux2,converr2,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
-ax.plot(modwave,fincident,'-',linewidth=1,label='Retrieved Spectrum',c='b')
+ax.plot(modwave,fincident,'-',linewidth=1,label='Retrieved Spectrum',c='#8080ff')
 ax.plot(wavemid,resid2+ymin/2.,'-',linewidth=1,label='Residuals (convovled and offset)',c='r')
 ax.plot([xmin,xmax],[0.,0.],'-',c='k')
 ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
@@ -1635,6 +1673,7 @@ for i in range(0,len(modwave)-1):
 
 if task=='Retrieval': sys.exit()
 
+#----------------------------------------------------------------------------------------#
 # Create binned files for particular JWST modes.
 # This is only allowed in Spectrum mode because Retrieval mode doesn't compute the full opacity table for efficiency.
 # The partial opacity table often does not cover the JWST modes.
