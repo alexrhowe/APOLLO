@@ -3,7 +3,6 @@ APOLLO TO-DO LIST
 Bugs and Bug Detection:
 2. Check that the metallicity, etc. are being computed correctly when there
    are fixed parameters.
-3. Handling of radius vs. area in an ensemble (and in general).
 4. Give absorption and scattering cross sections separate table sizes.
 
 Pending Updates:
@@ -67,6 +66,27 @@ Other Features:
 *******************************************************************************
 
 APOLLO CHANGE LOG
+
+v0.12.2
+Significant changes to clean up handling of multiple bands, including separate
+deltaL and logf parameters for each band.
+Changed logf to actually start from the logarithm. (This fixed the problem
+with feeding output files back in.)
+Removed the alternate, ratio-based treatment of radius, keeping it as just Rad.
+Removed rescaling between Earth radii and Jupiter radii, which was screwing up
+the results if the radius was omitted.
+Simplified Plot Apollo to read in relevant parameters from the input file. Also
+changed the samples output file to match.
+Fixed the "likelihood of input parameters" calculations (retrieval mode only).
+Tweaked band handling for reliability.
+Fixed the header of the Samples files when there are fixed parameters.
+Fixed a bug that returned a divide-by-zero error in C/O when there was no
+oxygen in the atmosphere.
+Increased fixed the number of decimal places written for wavelengths from two
+to five.
+Changed the input format for mass to "Mass_Limits", minmass, maxmass.
+Corrected formatting errors in the output parameter file.
+Verified that plot generation runs in APOLLO main.
 
 v0.12.1
 Fixed a bug in the "no-radius" normalization.

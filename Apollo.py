@@ -956,7 +956,6 @@ def lnlike(x,ibinlo,ibinhi,binflux,binerrhi):
     if(np.isnan(likelihood) or np.isinf(likelihood)):
         print("Error: ")
         print(params)
-        print(params1)
 
     # Uncomment to halt execution after the first sample for testing.
     #sys.exit()
@@ -1178,7 +1177,7 @@ if task=='Ensemble':
         allspec[ii] = fincident
 
     for i in range(0,len(modwave)-1):
-        fout.write('{0:8.2f} {1:8.2f}'.format(modwave[i],modwave[i+1]))
+        fout.write('{0:8.5f} {1:8.5f}'.format(modwave[i],modwave[i+1]))
         for j in range(0,len(eplist)):
             fout.write(' {0:8.5e}'.format(allspec[j][i]))
         fout.write('\n')
@@ -1463,15 +1462,18 @@ if task=='Retrieval':
     ffout.write('Star         {0:5.0f} {1:5.2f} {2:8.3f}\n'.format(tstar,rstar,sma))
     if not starspec=='': ffout.write('Star_Spec   {0:s}\n'.format(starspec))
     ffout.write('Location     {0:6.2f} {1:6.2f} {2:6.2f}\n'.format(dist,RA,dec))
-    ffout.write('Data         {0:s} {1:5.1f} {2:5.1f}\n'.format(datain,databin,dataconv))
-    ffout.write('Streams      {0:d}\n'.format(streams))
+    ffout.write('Data         {0:s} {1:5.1f} {2:5.1f}\n'.format(datain))
+    ffout.write('Convolve     {0:5.1f}\n'.format(dataconv))
+    ffout.write('Binning      {0:5.1f}\n'.format(databin))
+    ffout.write('Degrade      {0:5.1f}\n'.format(degrade))
     ffout.write('Pressure     {0:5.1f} {1:5.1f}\n'.format(minP-6.,maxP-6.))
+    ffout.write('Streams      {0:d}\n'.format(streams))
     ffout.write('Vres         {0:d}\n'.format(vres))
     if gray: ffout.write('Gray        {0:5.0f}\n'.format(tgray))
-    ffout.write('Minimum_Mass {0:5.2f}\n'.format(minmass))
+    ffout.write('Mass_Limits {0:5.2f} {1:5.2f}\n'.format(minmass,maxmass))
+    ffout.write('Tables       {0:s} {1:s}\n'.format(hires,lores))
     ffout.write('Output       modelspectra    Short\n')
     ffout.write('Opacities    {0:s}\n'.format(opacdir))
-    ffout.write('Tables       {0:s} {1:s}\n'.format(hires,lores))
     if not outmode=='': ffout.write('Output_Mode {0:s}\n'.format(outmode))
     
     ffout.write('Parameter    Initial    Mu    Sigma    Min    Max\n')
@@ -1592,7 +1594,6 @@ while True:
     ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
     
     plt.legend(fontsize=12)
-    plt.show()
     
     if not manual:
         print('Computing final outputs.')
@@ -1624,7 +1625,7 @@ fig4.savefig(fig4name)
 foutnameb = 'modelspectra' + outfile + 'binned.dat'
 fout = open(foutnameb,'w')
 for i in range(0,len(specout)):
-    fout.write('{0:8.2f} {1:8.2f} {2:8.5e} 0.0 0.0 {2:8.5e}\n'.format(binlo[i],binhi[i],binmod[i]))
+    fout.write('{0:8.5f} {1:8.5f} {2:8.5e} 0.0 0.0 {2:8.5e}\n'.format(binlo[i],binhi[i],binmod[i]))
 fout.close()
 
 # Plot the FULL-RES model/retrieved spectrum against the observations.
@@ -1667,7 +1668,7 @@ fig5.savefig(fig5name)
 foutnamef = 'modelspectra' + outfile + 'fullres.dat'
 fout = open(foutnamef,'w')
 for i in range(0,len(modwave)-1):
-    fout.write('{0:8.2f} {1:8.2f} {2:8.5e} 0.0 0.0 {2:8.5e}\n'.format(modwave[i],modwave[i+1],fincident[i]))
+    fout.write('{0:8.5f} {1:8.5f} {2:8.5e} 0.0 0.0 {2:8.5e}\n'.format(modwave[i],modwave[i+1],fincident[i]))
 
 # End of plot spectrum
 
@@ -1738,7 +1739,7 @@ if noisemode >= 0:
     ftest = open(foutname,'w')
     
     for i in range(0,len(calwave)-1):
-        ftest.write('{0:8.2f} {1:8.2f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(callo[i]-deltaL/1000.,calhi[i]-deltaL/1000.,obsdepth[i],noise[i],obs_flux[i]))
+        ftest.write('{0:8.5f} {1:8.5f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(callo[i]-deltaL/1000.,calhi[i]-deltaL/1000.,obsdepth[i],noise[i],obs_flux[i]))
 
     # Plot the JWST mode against the observations.
         
