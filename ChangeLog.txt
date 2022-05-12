@@ -1,6 +1,8 @@
 APOLLO TO-DO LIST
 
 Bugs and Bug Detection:
+1. Edge effects cause errors when the specific mode is the same width as the
+   model spectrum.
 2. Check that the metallicity, etc. are being computed correctly when there
    are fixed parameters.
 3. Handling of radius vs. area in an ensemble (and in general).
@@ -95,28 +97,6 @@ Streamlined reading in the paramater file with less use of split().
 Fixed a bug that caused deltaL to appear twice in the output file for a
 parametric T-P profile.
 Split the To-Do List and Change Log into a separate ChangeLog.txt file.
-Minor updates to inline documentation.
-Reduced the number of walkers in Serial model to the minimum to allow for
-faster testing.
-Corrected the initial assignment of logf.
-Corrected the default value of lnf from 1.0 to -100.0.
-Add a commented-out runtime-updating forward model plot and forward model
-write-to-file to lnlike() for testing purposes.
-Added likelihood/length-of-spectrum as an extra column to the samples output
-file.
-Wrote the retrieved values of 'End' parameters to the output file instead of
-defaults.
-Moved the mass calculation to the correct position near the beginning of
-setParams() in Planet.cpp.
-Fixed a bug in the "no-radius" normalization.
-Fixed several problems with the binning and convolving functions.
-Changed BinBands to accept 2D arrays and return flattened arrays regardless of
-the number of bands.
-Converted the whole code from dealing with wavenumbers to dealing with
-wavelengths because that's much less confusing.
-Fixed the delta-L handing, which was mismatched in wavelength v. wavenumber.
-Changed the band handling to add a buffer around each band equal to the bonuds
-on delta-L.
 
 v0.11.5
 Combined Planet_layer.cpp and Planet_auto.cpp into a single Planet.cpp (and the
