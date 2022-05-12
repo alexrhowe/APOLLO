@@ -1,8 +1,11 @@
 APOLLO TO-DO LIST
 
 Bugs and Bug Detection:
+1. Edge effects cause errors when the specific mode is the same width as the
+   model spectrum.
 2. Check that the metallicity, etc. are being computed correctly when there
    are fixed parameters.
+3. Handling of radius vs. area in an ensemble (and in general).
 4. Give absorption and scattering cross sections separate table sizes.
 
 Pending Updates:
@@ -67,43 +70,6 @@ Other Features:
 
 APOLLO CHANGE LOG
 
-v0.12.2
-Significant changes to clean up handling of multiple bands, including separate
-deltaL and logf parameters for each band.
-Changed logf to actually start from the logarithm. (This fixed the problem
-with feeding output files back in.)
-Removed the alternate, ratio-based treatment of radius, keeping it as just Rad.
-Removed rescaling between Earth radii and Jupiter radii, which was screwing up
-the results if the radius was omitted.
-Simplified Plot Apollo to read in relevant parameters from the input file. Also
-changed the samples output file to match.
-Fixed the "likelihood of input parameters" calculations (retrieval mode only).
-Tweaked band handling for reliability.
-Fixed the header of the Samples files when there are fixed parameters.
-Fixed a bug that returned a divide-by-zero error in C/O when there was no
-oxygen in the atmosphere.
-Increased fixed the number of decimal places written for wavelengths from two
-to five.
-Changed the input format for mass to "Mass_Limits", minmass, maxmass.
-Corrected formatting errors in the output parameter file.
-Verified that plot generation runs in APOLLO main.
-
-v0.12.1
-Fixed a bug in the "no-radius" normalization.
-Fixed several problems with the binning and convolving functions.
-Changed BinBands to accept 2D arrays and return flattened arrays regardless of
-the number of bands.
-Converted the whole code from dealing with wavenumbers to dealing with
-wavelengths because that's much less confusing.
-Fixed the delta-L handing, which was mismatched in wavelength v. wavenumber.
-Changed the band handling to add a buffer around each band equal to the bonuds
-on delta-L.
-Added additional parameters to scale bands relative to each other.
-Added comment lines to make the segments of the code clearer.
-Changed the "End" parameters to output 4 decimal places.
-Removed an extraneous newline from the Samples output file.
-Fixed a bug in the parametric T-P profile calculation.
-
 v0.12.0
 Created new 'Ensemble' operating mode, specified at the command line. This
 mode creates an ensemble of spectra varying any parameters that have the
@@ -131,19 +97,6 @@ Streamlined reading in the paramater file with less use of split().
 Fixed a bug that caused deltaL to appear twice in the output file for a
 parametric T-P profile.
 Split the To-Do List and Change Log into a separate ChangeLog.txt file.
-Minor updates to inline documentation.
-Reduced the number of walkers in Serial model to the minimum to allow for
-faster testing.
-Corrected the initial assignment of logf.
-Corrected the default value of lnf from 1.0 to -100.0.
-Add a commented-out runtime-updating forward model plot and forward model
-write-to-file to lnlike() for testing purposes.
-Added likelihood/length-of-spectrum as an extra column to the samples output
-file.
-Wrote the retrieved values of 'End' parameters to the output file instead of
-defaults.
-Moved the mass calculation to the correct position near the beginning of
-setParams() in Planet.cpp.
 
 v0.11.5
 Combined Planet_layer.cpp and Planet_auto.cpp into a single Planet.cpp (and the
