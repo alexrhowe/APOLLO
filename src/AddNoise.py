@@ -51,8 +51,9 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
     k=0
 
     uwave = mod_wave
-    mod_wave = 10000./mod_wave
+    # mod_wave = 10000./mod_wave
 
+    # planet_flux = mod_flux/np.pi * omega_planet
     for i in range(0,len(mod_flux)):
         planet_flux[i] = (float)(mod_flux[i])/pi*omega_planet  # multiply by solid angle
 
