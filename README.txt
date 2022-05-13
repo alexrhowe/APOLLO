@@ -1,7 +1,7 @@
 USER GUIDE TO THE APOLLO ATMOSPHERE RETRIEVAL CODE
 
-APOLLO v0.12 Beta
-12 March 2021
+APOLLO v0.12.1 Beta
+30 July 2021
 
 NOTE: this public beta is generally stable for the cases described in
 Section 2, but development is ongoing. We are running a full suite of test and
