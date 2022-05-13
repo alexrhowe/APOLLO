@@ -1,6 +1,8 @@
 APOLLO TO-DO LIST
 
 Bugs and Bug Detection:
+1. Edge effects cause errors when the specific mode is the same width as the
+   model spectrum.
 2. Check that the metallicity, etc. are being computed correctly when there
    are fixed parameters.
 4. Give absorption and scattering cross sections separate table sizes.
