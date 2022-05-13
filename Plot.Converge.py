@@ -17,7 +17,6 @@ ndim = int(line[2])
 pnames = fin.readline().split()
 
 lines = fin.readlines()
-print(nwalkers, nsteps, ndim, len(lines))
 samples = np.zeros((nsteps,nwalkers,ndim))
 nsamp = np.linspace(1,nsteps,nsteps)
 
@@ -25,8 +24,7 @@ for i in range(0,nsteps):
     if i%100==0: print(i)
     for j in range(0,nwalkers):
         for k in range(0,ndim):
-            #print(len(lines[i*nwalkers+j]))
-            samples[i,j,k] = lines[2*i*nwalkers+2*j].split()[k]
+            samples[i,j,k] = lines[i*nwalkers+j].split()[k]
 
 for n in range(0,ndim-1):
     fig = plt.figure()
