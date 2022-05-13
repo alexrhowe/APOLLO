@@ -4,8 +4,8 @@ from Cython.Build import cythonize
 from Cython.Distutils import build_ext
 
 import os
-os.environ['CC'] = 'gcc'
-os.environ['CXX'] = 'g++'
+os.environ['CC'] = 'gcc-mp-9'
+os.environ['CXX'] = 'g++-mp-9'
 
 ext_modules=[
     Extension("wrapPlanet",
