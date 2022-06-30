@@ -1,73 +1,58 @@
-APOLLO TO-DO LIST
+APOLLO TO-DO LIST (SEPARATE FROM THE ISSUE LIST)
 
-Bugs and Bug Detection:
-1. Edge effects cause errors when the specific mode is the same width as the
-   model spectrum.
-2. Check that the metallicity, etc. are being computed correctly when there
-   are fixed parameters.
-4. Give absorption and scattering cross sections separate table sizes.
-
-Pending Updates:
-5. Implement Arthur's Planet_auto_4-models_exponential.cpp.
-6. Implement Arthur's changes to output and plot both median and MLE values.
-7. Implement and example Arthur's addition of cloud parameters and parametric
-   T-P profiles to Plot Apollo.
-8. Implement Arthur's contribution functions (once completed).
-
-Cosmetic:
-9. Reorganize the header file to handle public and private correctly.
-10. Replace all example output files with up to date versions.
-11. Update the inline documentation and README file. (Include any NOTES from
-    the Change Log.)
-12. Revise the code for clarity: less confusing names for some parameters,
-    correct labeling of "cross section" vs. "opacity" and "aerosol" vs. "cloud"
-    or "haze".
-13. Create or modify an example file for Ensemble mode.
-
-Aerosol and T-P Models:
-14. Combine layer-by-layer and (multiple?) parametric T-P profile generation
-    functions into a single pipeline.
-15. Combine the various aerosol models into a single pipeline (with clear names
-    for each model).
-16. Add more cloud models, especially particle size distributions.
-17. Set the cloud priors so that the cloud base cannot be deeper than the
+Set the cloud priors so that the cloud base cannot be deeper than the
     maximum pressure in the model.
-
-Cross Section Tables:
-18. Add an option to auto-detect the resolution of the input spectrum and
+Add an option to auto-detect the resolution of the input spectrum and
     sample the cross section files accordingly.
-19. Convert the cross section tables to bin files and do direct lookup of the
+Convert the cross section tables to bin files and do direct lookup of the
     needed wavelengths.
-20. Create lo-res opacity tables suitable to be added to the Github repository.
-
-Input/Output:
-21. Consider adding more command line arguments to MakeHaze and checking for
-    bad inputs.
-22. Add additional flexibility to Plot Ensemble.
-23. Add an option to plot comparison or literature values to Plot Apollo.
-24. Print some of the output in LaTeX formatting.
-25. Re-evaluate specific mode spectrum generation. Would it be better to accept
+Create lo-res opacity tables suitable to be added to the Github repository.
+Add an option to plot comparison or literature values to Plot Apollo.
+Re-evaluate specific mode spectrum generation. Would it be better to accept
     auxiliary input files like the photometric mode does instead of hard-coding
     all the JWST modes. Consider what specific mode options to include, if any
     since we don't have any other observatories. Clean up JWST mode file names,
     and add or delete appropriate files. Revise the AddNoise function based on
     the ETC or otherwise fix the inconsistencies.
 
-Other Features:
-26. Add options for reflection spectra.
-27. Implement 2-stream radiative transfer for transits.
-28. Let transits use an input stellar spectrum.
-29. Re-evaluate appropriate usage of separate upper and lower error bars.
-30. Add options to test for convergence on the fly for both emcee's
-    autocorrelation and an additional stopping criterion to max_steps.
-31. Implement BIC or other statistical tests.
-32. Add an option to lnlike() to bypass the calculation of binmod and s2, and
-    call AddNoise() to find goodness of fit for specific JWST modes.
-33. Add parameters for flux calibration between bands.
-
 *******************************************************************************
 
 APOLLO CHANGE LOG
+
+v0.13
+Added additional useful Python packages.
+Move several code elements to different files, including default parameter
+values (through the defaults.py file), parameter names, and temperature-
+pressure profile calculations.
+Defined variables for Earth radius, Jupiter radius, and parsec.
+Added a new 'P_profile' variable and P_points.py file, which allows the user to
+select a non-uniformly-spaced pressure profile from a dictionary.
+Added a new 'plotting' variable that allows the used to toggle plotting on and
+off, which is often necessary to run the code on a cluster.
+Converted some lists to arrays for easier calculations.
+Added dummy derived variables to GetModel() in case they cannot be calculated.
+Added the TP_functions and TP_profiles.py that allow the user to select a
+different T-P profile parameterization from a dictionary.
+Further refined the output parameter file format.
+Moved computation of derived parameters to GetModel().
+Clarified some error messages.
+Fixed the bug that caused an error if lnprob() was initially called before
+GetModel().
+Fixed a bug in the initialization of medianparams.
+Removed superfluous function arguments.
+Changed the molecular weights and Rayleigh cross sections to vectors (which
+helps with computing contribution functions).
+Implemented a cloud fill fraction parameter.
+Cleaned up the ConvSpec() function.
+Set h2+he as the automatic default filler gas.
+Revised the SliceModel() function for robustness.
+Implemented a power law cloud model (Cloud Model 4).
+Added a default case for no clouds to call get_ClearSpectrum() only to speed
+execution.
+Added functionality to Plot.Apollo.py to plot the parametric T-P profile.
+Added commented-out code for radius corrections to Plot Apollo.
+Improved appearance of corner plots in Plot Apollo.
+Implemented a corner plot of statistical parameters in Plot Apollo.
 
 v0.12.2
 Significant changes to clean up handling of multiple bands, including separate
@@ -865,7 +850,8 @@ Implement combined transit and eclipse retrieval. This may involve dayside and
 Implement phase curve observations. Basically the same as partial cloud
     coverage: dayside and nightside models with the "partial coverage"
     parameter being the phase angle.
-Implement separate evening and morning terminator models for transiting planets.
+Implement separate evening and morning terminator models for transiting
+    planets.
 
 IDEAS FOR VERSION 2.
 

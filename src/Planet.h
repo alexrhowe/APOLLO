@@ -97,12 +97,12 @@ class Planet
   Atmosphere* atmoshires;
   Atmosphere* atmoslores;
   
-  void setParams(vector<double> plparams, vector<double> abund, vector<double>rxsecs, vector<double> tpprofile);
+  void setParams(vector<double> plparams, vector<double> abund, vector<double> tpprofile);
   double getTeff();
   vector<double> getSpectrum();
   vector<double> getClearSpectrum();
   void readopac(vector<int> mollist, vector<double> wavens, string table, string opacdir);
-  void setWave(int npoints, vector<double> rxsec, vector<double> wavelist, vector<double> abund);
+  void setWave(int npoints, vector<double> rxsec, vector<double> abund);
   vector<vector<double>> getContribution();
   vector<vector<double>> getCloudContribution();
   vector<vector<double>> getGasContribution();
