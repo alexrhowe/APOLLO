@@ -17,17 +17,32 @@ cdef class PyPlanet:
     def get_Teff(self):
         return self.thisptr.getTeff()
 
-    def set_Params(self, plparams, abund, tpprofile):
-        return self.thisptr.setParams(plparams, abund, tpprofile)
+    def set_Params(self, plparams, abund, rxsecs, tpprofile):
+        return self.thisptr.setParams(plparams, abund, rxsecs, tpprofile)
 
     def get_Spectrum(self):
         return self.thisptr.getSpectrum()
 
-    def readopac(self, mollist, wavens, table, opacdir):
-        return self.thisptr.readopac(mollist, wavens, table, opacdir)
+    def get_ClearSpectrum(self):
+        return self.thisptr.getClearSpectrum()
 
-    def setWave(self, npoints, rxsec, wavens, abund):
-        return self.thisptr.setWave(npoints, rxsec, wavens, abund)
+    def readopac(self, mollist, table, opacdir):
+        return self.thisptr.readopac(mollist, table, opacdir)
+
+    def setWave(self, npoints, rxsecs, abund):
+        return self.thisptr.setWave(npoints, rxsecs, abund)
+
+    def getContribution(self):
+        return self.thisptr.getContribution()
+
+    def getCloudContribution(self):
+        return self.thisptr.getCloudContribution()
+
+    def getGasContribution(self):
+        return self.thisptr.getGasContribution()
+
+    def getSpeciesContribution(self):
+        return self.thisptr.getSpeciesContribution()
 
     def getFlux(self, wavens, table):
         return self.thisptr.getFlux(wavens, table)

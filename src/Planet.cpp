@@ -64,14 +64,14 @@ Planet::Planet(vector<int> switches, vector<double> waves, vector<double> wavesl
   atmoshires = new Atmosphere(hazetype,temphaze,hires,opacdir);
   atmoslores = new Atmosphere(hazetype,temphaze,lores,opacdir);
   printf("Reading in cross sections.\n");
-  readopac(mollist, wavens, "hires", opacdir);
-  readopac(mollist, wavenslo, "lores", opacdir);
+  readopac(mollist, "hires", opacdir);
+  readopac(mollist, "lores", opacdir);
   printf("Finished reading cross sections.\n");
 }
 // end constructor
 
 // Reads in the variables that define a particular model and sets the parameters
-void Planet::setParams(vector<double> plparams, vector<double> abund, vector<double> tpprofile)
+void Planet::setParams(vector<double> plparams, vector<double> abund, vector<double> rxsecs, vector<double> tpprofile)
 {
   rp = plparams[0]*R_EARTH;
   grav = pow(10,plparams[1]);
@@ -83,10 +83,16 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
   minP = plparams[7];
   maxP = plparams[8];
   sma = plparams[9]*1.496e13;
+  
   mp = grav/G*rp*rp;
   
-  haze = vector<double>(4,0);
-  if(hazetype!=0){
+  if(hazetype!=4){
+    haze = vector<double>(4,0);
+  }
+  else{
+    haze = vector<double>(5,0);
+  }
+  if(hazetype!=0 || cloudmod==4){
     if(cloudmod==2){
       for(int i=10; i<14; i++){
 	haze[i-10] = pow(10,plparams[i]);
@@ -98,6 +104,13 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
       haze[2] = plparams[12];
       haze[3] = plparams[13];
     }
+    if(cloudmod==4){
+      haze[0] = plparams[10];
+      haze[1] = pow(10,plparams[11]);
+      haze[2] = pow(10,plparams[12]);
+      haze[3] = pow(10,plparams[13]);
+      haze[4] = plparams[14];
+    }
   }
 
   if(tprofmode==0){  
@@ -106,10 +119,8 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
     
     tpprof = vector<double>(nlevel,0);
     hprof = vector<double>(nlevel,0);
-    // Flipped around to work with Mark Marley's radiative transfer algorithm.
-    for(int i=0; i<nlevel; i++){
-      tpprof[i] = tpprofile[nlevel-1-i];
-    }
+
+    tpprof = tpprofile;
     getProfLayer(tpprof);
   }
   else{
@@ -129,7 +140,7 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
   // hmax changed to the 1 mubar level; can change this
   hmin = getH(pressure);
   hmax = hprof[0];
-  setWave(nwave,rxsec,wavens,abund);
+  setWave(nwave,rxsecs,abund);
   return;
 }
 // end setParams
@@ -141,7 +152,11 @@ double Planet::getTeff(){
   double totflux=0.;
 
   for(int i=1; i<wavenslo.size(); i++){
-    totflux += tdepthlo[i]*(wavenslo[i]-wavenslo[i-1])/10000.;
+    totflux += tdepthlo[i] * (wavenslo[i]-wavenslo[i-1])/1e4;
+    if(isnan(tdepthlo[i])){
+      printf("Failure in tdepth. %d %f %f\n",i,wavenslo[i],wavenslo[i-1]);
+      break;
+    }
   }
 
   // Compute Teff based on the Stefan-Boltzmann Law.
@@ -162,8 +177,30 @@ vector<double> Planet::getSpectrum(){
   return tdepth;
 }
 
+// Calls the appropriate method given the spectrum type
+vector<double> Planet::getClearSpectrum(){
+  vector<double> tdepth;
+
+  int saved_cloudmod = cloudmod;
+  cloudmod = 0;
+  if(mode<=1) getTauProf(wavens, "hires");
+  if(mode==2) transTauProf(wavens, "hires");
+  getTauProf(wavenslo,"lores");
+
+  if(mode<=1) tdepth = getFlux(wavens,"hires");
+  else if(mode==2) tdepth = transFlux(rs,wavens,"hires");
+  else printf("Error: invalid settings in getSpectrum.");
+
+  cloudmod = saved_cloudmod;
+  if(mode<=1) getTauProf(wavens, "hires");
+  if(mode==2) transTauProf(wavens, "hires");
+  getTauProf(wavenslo,"lores");
+
+  return tdepth;
+}
+
 // Reads in the opacities tables
-void Planet::readopac(vector<int> mollist, vector<double> wavens, string table, string opacdir){
+void Planet::readopac(vector<int> mollist, string table, string opacdir){
   string specfile;
   
   string gaslist[19] = {"h2he","h2","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"};
@@ -296,19 +333,92 @@ void Planet::readopac(vector<int> mollist, vector<double> wavens, string table, 
 // end readopac
 
 // Calls the methods to create the optical depth tables for this atmosphere
-void Planet::setWave(int npoints, double rxsec, vector<double> wavelist, vector<double> abund)
+void Planet::setWave(int npoints, vector<double> rxsecs, vector<double> abund)
 {
   for(int i=1; i<nspec; i++){
     abund[i] = pow(10,abund[i]);
   }
   
-  getOpacProf(rxsec, wavens, abund, "hires");
+  getOpacProf(rxsecs, wavens, abund, "hires");
   if(mode<=1) getTauProf(wavens, "hires");
   if(mode==2) transTauProf(wavens, "hires");
-  getOpacProf(rxsec, wavenslo, abund, "lores");
+  getOpacProf(rxsecs, wavenslo, abund, "lores");
   getTauProf(wavenslo,"lores");
 }
 // end setWave
+
+// ada: Additional function to return the contribution function of the opacity, here called "taulayer".
+vector<vector<double > > Planet::getContribution()
+{
+  printf("Start of getContribution\n");
+  vector<vector<double> > contribution(wavens.size(),vector<double>(nlayer,0));
+
+  for(int i=0; i<wavens.size(); i++){
+    for(int j=0; j<nlayer; j++){
+      contribution[i][j] = taulayer[i][j]*blayer[i][j] / exp(tauprof[i][j]);
+    }
+  }
+  printf("End of getContribution\n");
+  return contribution;
+}
+
+// ada: Additional function to return the cloud optical depth.
+vector<vector<double > > Planet::getCloudContribution()
+{
+  printf("Start of getCloudContribution\n");
+  vector<vector<double> > contribution(wavens.size(),vector<double>(nlayer,0));
+  for(int i=0; i<wavens.size(); i++){
+    for(int j=0; j<nlayer; j++){
+      contribution[i][j] = cloudtaulayer[i][j];
+    }
+  }
+  printf("End of getCloudContribution\n");
+  return contribution;
+}
+
+// ada: Additional function to return the gas optical depth.
+vector<vector<double > > Planet::getGasContribution()
+{
+  printf("Start of getGasContribution\n");
+  vector<vector<double> > contribution(wavens.size(),vector<double>(nlayer,0));
+  for(int i=0; i<wavens.size(); i++){
+    for(int j=0; j<nlayer; j++){
+      contribution[i][j] = gastaulayer[i][j]*blayer[i][j] / exp(tauprof[i][j]);
+    }
+  }
+  printf("End of getGasContribution\n");
+  return contribution;
+}
+
+// ada: Additional function to return the species-by-species absorption opacities.
+vector<vector<vector<double > > > Planet::getSpeciesContribution()
+{
+  printf("Start of getSpeciesContribution\n");
+  int nmol = nspec;
+  if(nmol==0) nmol = 1;
+  vector<vector<vector<double > > > contribution(nmol,vector<vector<double>>(wavens.size(),vector<double>(nlayer,0)));
+
+  for(int n=0; n<nmol; n++){
+    for(int i=0; i<wavens.size(); i++){
+      double wavel = 10000./wavens[i];
+      
+      for(int j=0; j<nlayer; j++){
+	double dl = (hprof[j]-hprof[j+1]);
+	double specopac = specopacprof[n][i][j];
+	double pmid = sqrt(prprof[j]*prprof[j+1]);
+	double tmid = 0.5*(tprof[j]+tprof[j+1]);
+	
+	double xstodt = pmid/k/tmid;
+	double dtau = specopac*xstodt;
+
+	double spectaulayer = dtau * dl;
+	contribution[n][i][j] = spectaulayer*blayer[i][j] / exp(tauprof[i][j]);
+      }
+    }
+  }
+  printf("End of getSpeciesContribution\n");
+  return contribution;
+}
 
 // Retrieves the pressure at a given altitude
 double Planet::getP(double height)
@@ -437,6 +547,12 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
   vector<double> alpha(nlayershort,0);
   vector<double> lamda(nlayershort,0);
   vector<double> gama(nlayershort,0);
+  
+  // Blackbody profile added to original Toon method.
+  // Used for contribution functions.
+  if(table == "hires"){
+    blayer = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
+  }
   vector<double> b0(nlayershort,0);
   vector<double> b1(nlayershort,0);
   vector<double> bdiff(nlayershort,0);
@@ -485,7 +601,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
   vector<double> cosbar(nlayershort,0);
 
   for(int i=0; i<wavens.size(); i++){
-    double wavelength = wavens[i]/10000.;
+    double wavelength = wavens[i]/1.e4;
 
     double btop;
     double bottom;
@@ -515,6 +631,8 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
 	  b0[j] = 0.5*(blackbodyL(tprof[j],wavelength)+blackbodyL(tprof[j+1],wavelength));
 	  bdiff[j] = 0.;
 	}
+    
+	blayer[i][j] = b0[j];
 
 	// These are the blackbody fluxes corrected for the quadrature.
 	// cp and cm are C^+ and C^- in Toon et al., evaluated at the bottom of the atmosphere.
@@ -1083,10 +1201,17 @@ void Planet::getProfParam(vector<double> tpprofile)
 void Planet::getTauProf(vector<double> wavens, string table)
 {
   if(table=="hires"){
+    // Clear and cloudy optical depth profiles.
+    // Used for contribution functions and cloud filling factor.
     tauprof = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
     taulayer = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
     w0 = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
     asym = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
+
+    cloudtauprof = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
+    cloudtaulayer = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
+    gastauprof = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
+    gastaulayer = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
     
     double forwardfrac = 0.;
     double backwardfrac = 0.;
@@ -1104,7 +1229,11 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	double nden = pmid/k/tmid; // Number density of gas molecules.
 	
 	double dtau = opac * nden;
-	if(j>0) tauprof[i][j] = tauprof[i][j-1] + dtau * dl;
+	if(j>0){
+	  gastauprof[i][j] = gastauprof[i][j-1] + dtau * dl;
+	  tauprof[i][j] = tauprof[i][j-1] + dtau * dl;
+	}
+	gastaulayer[i][j] = dtau * dl;
 	taulayer[i][j] = dtau * dl;
 	
 	double dlc = 0.; // thickness of cloud inside the layer
@@ -1119,12 +1248,21 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	
 	doMie = false;
 	
-	if(hazetype!=0 && cloudmod>1){
-	  doMie = true;
-	  
-	  absorbxsec = atmoshires->getAbsXsec(wavel,haze[1]);
-	  scatterxsec = atmoshires->getScaXsec(wavel,haze[1]);
-	  hazexsec = absorbxsec + scatterxsec;
+	if((hazetype!=0 && cloudmod>1) || cloudmod==4){
+	  if(cloudmod!=4){
+          
+	    absorbxsec = atmoshires->getAbsXsec(wavel,haze[1]);
+	    scatterxsec = atmoshires->getScaXsec(wavel,haze[1]);
+	    hazexsec = absorbxsec + scatterxsec;
+
+	    if(mode<=1 && streams==2){
+	      doMie = true;
+	    }
+	  }
+	  // ada: For the power-law opacity cloud model, we use the hazexsec variable as the wavelength scaling (haze[1] is the power-law exponent). haze[0] is a constant optical depth per unit length, or linear attenuation coefficient, for the cloud.
+	  else{
+	    hazexsec = pow(wavel, haze[0]);
+	  }
 	  
 	  // Slab cloud model
 	  if(cloudmod==2){
@@ -1152,6 +1290,35 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	    hazeabund = haze[0]*gauss(log10(prprof[j]),haze[2],haze[3]);
 	    dlc = dl;
 	  }
+
+	  if(cloudmod==4){
+	    // ada: Since the optical depth profile is set directly in this model, rather than the haze density, we don't need the path length.
+	    //hazeabund = 1.;
+	    //double scale = (haze[1]*(haze[2]-1))/haze[2];
+	    //dlc = exp((prprof[j+1]-haze[1])/scale) - exp((prprof[j]-haze[1])/scale);
+	    //if(dlc > 100.){
+	    //  dlc = 100.;
+	    //}
+	    double P_top = haze[1];
+	    double P_base = P_top + haze[2];
+	    hazeabund = haze[3] * ((prprof[j+1]*prprof[j+1])-(prprof[j]*prprof[j])) / ((P_base*P_base)-(P_top*P_top));
+	    // layer is strictly inside the cloud
+	    if(prprof[j] >= P_top && prprof[j+1] <= P_base){
+	      dlc = dl;
+	    }
+	    // layer overlaps bottom of cloud
+	    else if(prprof[j] >= P_top && prprof[j] <= P_base){
+	      dlc = dl * (log10(P_base/prprof[j]) / log10(P_base/P_top));
+	    }
+	    // layer overlaps top of cloud
+	    else if(prprof[j+1] >= P_top && prprof[j+1] <= P_base){
+	      dlc = dl * (log10(prprof[j+1]/P_top) / log10(P_base/P_top));
+	    }
+	    // layer contains entire cloud
+	    else if(prprof[j] <= P_top && prprof[j+1] >= P_base){
+	      dlc = dl * (log10(prprof[j+1]/P_top) / log10(P_base/P_top));
+	    }
+	  }
 	  
 	  hazedepth = hazexsec * hazeabund;
 	  absdepth = absorbxsec * hazeabund;
@@ -1160,29 +1327,36 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	} // end if(hazetype!=0)
 	
 	if(j==0){
+	  cloudtauprof[i][j] = 0.;
 	  tauprof[i][j] = 0.;
 	}
 	else{
+	  cloudtauprof[i][j] += hazedepth * dlc;
 	  tauprof[i][j] += hazedepth * dlc;
-	}
+    }
+	cloudtaulayer[i][j] += hazedepth * dlc;
 	taulayer[i][j] += hazedepth * dlc;
         
 	if(doMie==true){
 	  // w0 is the single scattering albedo: the ratio of the scattering optical depth to the total optical depth
 	  w0[i][j] = (sca*nden + scadepth) / (dtau + hazedepth);
 	  
-	  if (j==0) {
+	  if (j==0){
 	    backwardfrac = atmoshires->getAsym(wavel,haze[1]);
 	    forwardfrac = 1.-backwardfrac;
 	  }
 	  // Hemispheric approximation to the asymmetry parameter integral.
 	  asym[i][j] = (forwardfrac-backwardfrac)*scatterxsec / (sca + (forwardfrac+backwardfrac)*scatterxsec);
+    }
+	// ada: For the power-law opacity cloud model, the single-scattering albedo is a free parameter (constant in wavelength).
+	else if(cloudmod==4){
+	  w0[i][j] = haze[4];
 	}
 	else w0[i][j] = sca*nden / (dtau + hazedepth);
 	// w0 is layer single scattering albedo with layer 0 on top
 	// ratio of scattering to total opacity
-      } // end for(i)
-    } // end for(j)
+      } // end for(j)
+    } // end for(i)
   } // end if(table=="hires")
   
   if(table=="lores"){
@@ -1222,11 +1396,20 @@ void Planet::getTauProf(vector<double> wavens, string table)
 
 	doMie = false;
 	
-	if(hazetype!=0 && cloudmod>1){
-	  doMie = true;
-	  absorbxsec = atmoslores->getAbsXsec(wavel,haze[1]);
-	  scatterxsec = atmoslores->getScaXsec(wavel,haze[1]);
-	  hazexsec = absorbxsec + scatterxsec;
+	if((hazetype!=0 && cloudmod>1) || cloudmod==4){
+	  if(cloudmod!=4){
+	    absorbxsec = atmoslores->getAbsXsec(wavel,haze[1]);
+	    scatterxsec = atmoslores->getScaXsec(wavel,haze[1]);
+	    hazexsec = absorbxsec + scatterxsec;
+
+	    if(mode<=1 && streams==2){
+	      doMie = true;
+	    }
+	  }
+	  // ada: For the power-law opacity cloud model, we use the hazexsec variable as the wavelength scaling (haze[1] is the power-law exponent). haze[0] is a constant optical depth per unit length, or linear attenuation coefficient, for the cloud.
+	  else{
+	    hazexsec = pow(wavel, haze[0]);
+	  }
 	  
 	  // Slab cloud model
 	  if(cloudmod==2){
@@ -1254,6 +1437,35 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	    hazeabund = haze[0]*gauss(log10(prprof[j]),haze[2],haze[3]);
 	    dlc = dl;
 	  }
+
+	  if(cloudmod==4){
+	    // ada: Since the optical depth profile is set directly in this model, rather than the haze density, we don't need the path length.
+	    //hazeabund = 1.;
+	    //double scale = (haze[1]*(haze[2]-1))/haze[2];
+	    //dlc = exp((prprof[j+1]-haze[1])/scale) - exp((prprof[j]-haze[1])/scale);
+	    //if(dlc > 100.){
+	    //  dlc = 100.;
+	    //}
+	    double P_top = haze[1];
+	    double P_base = P_top + haze[2];
+	    hazeabund = haze[3] * ((prprof[j+1]*prprof[j+1])-(prprof[j]*prprof[j])) / ((P_base*P_base)-(P_top*P_top));
+	    // layer is strictly inside the cloud
+	    if(prprof[j] >= P_top && prprof[j+1] <= P_base){
+	      dlc = dl;
+	    }
+	    // layer overlaps bottom of cloud
+	    else if(prprof[j] >= P_top && prprof[j] <= P_base){
+	      dlc = dl * (log10(P_base/prprof[j]) / log10(P_base/P_top));
+	    }
+	    // layer overlaps top of cloud
+	    else if(prprof[j+1] >= P_top && prprof[j+1] <= P_base){
+	      dlc = dl * (log10(prprof[j+1]/P_top) / log10(P_base/P_top));
+	    }
+	    // layer contains entire cloud
+	    else if(prprof[j] <= P_top && prprof[j+1] >= P_base){
+	      dlc = dl * (log10(prprof[j+1]/P_top) / log10(P_base/P_top));
+	    }
+	  }
 	  
 	  hazedepth = hazexsec * hazeabund;
 	  absdepth = absorbxsec * hazeabund;
@@ -1273,19 +1485,23 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	  // w0 is the single scattering albedo: the ratio of the scattering optical depth to the total optical depth
 	  w0lo[i][j] = (sca*nden + scadepth) / (dtau + hazedepth);
 	  
-	  if (j==0) {
+	  if (j==0){
 	    backwardfrac = atmoslores->getAsym(wavel,haze[1]);
 	    forwardfrac = 1.-backwardfrac;
 	  }
 	  // Hemispheric approximation to the asymmetry parameter integral.
 	  asymlo[i][j] = (forwardfrac-backwardfrac)*scatterxsec / (sca + (forwardfrac+backwardfrac)*scatterxsec);
 	}
+	// ada: For the power-law opacity cloud model, the single-scattering albedo is a free parameter (constant in wavelength).
+	else if(cloudmod==4){
+	  w0lo[i][j] = haze[4];
+	}
 	else w0lo[i][j] = sca*nden / (dtau + hazedepth);
 	// w0 is layer single scattering albedo with layer 0 on top
 	// ratio of scattering to total opacity
-	
-      } // end for(i)
-    } // end for(j)
+    
+      } // end for(j)
+    } // end for(i)
   } // end if(table=="lores")
 }
 // end getTauProf
@@ -1323,15 +1539,22 @@ void Planet::transTauProf(vector<double> wavens, string table)
 	  double dlc = 0.; // thickness of cloud inside the layer
 	  double hazeabund = 0.;
 	  
-	  if(hazetype!=0 && cloudmod>1){
-	    double absorbxsec = atmoshires->getAbsXsec(wavel,haze[1]);
-	    double scatterxsec = atmoshires->getScaXsec(wavel,haze[1]);
+	  if((hazetype!=0 && cloudmod>1) || cloudmod==4){
 	    double hazexsec;
-	    if(mode<=1 && streams==2){
-	      hazexsec = absorbxsec;
+        
+	    if(cloudmod!=4){
+	      double absorbxsec = atmoshires->getAbsXsec(wavel,haze[1]);
+	      double scatterxsec = atmoshires->getScaXsec(wavel,haze[1]);
+	      hazexsec = absorbxsec + scatterxsec;
+	    }
+	    // ada: For the power-law opacity cloud model, we use the hazexsec variable as the wavelength scaling (haze[1] is the power-law exponent). haze[0] is a constant optical depth per unit length, or linear attenuation coefficient, for the cloud.
+	    if(cloudmod==4){
+	      hazexsec = pow(wavel, haze[0]);
+	    }
+	    if(mode<=1 && streams==2 && cloudmod!=4){
+	      hazexsec = atmoshires->getAbsXsec(wavel,haze[1]);
 	      doMie = true;
 	    }
-	    else hazexsec = absorbxsec + scatterxsec;
 	    
 	    // Slab cloud model
 	    if(cloudmod==2){
@@ -1359,6 +1582,19 @@ void Planet::transTauProf(vector<double> wavens, string table)
 	      hazeabund = haze[0]*gauss(log10(prprof[j]),haze[2],haze[3]);
 	      hazedepth = hazexsec * hazeabund;
 	      dlc = dl;
+	    }
+	    if(cloudmod==4){
+	      // ada: Since the optical depth profile is set directly in this model, rather than the haze density, we don't need the path length.
+	      //hazeabund = 1.;
+	      //double scale = (haze[1]*(haze[2]-1))/haze[2];
+	      //dlc = exp((prprof[j+1]-haze[1])/scale) - exp((prprof[j]-haze[1])/scale);
+	      //if(dlc > 100.){
+	      //  dlc = 100.;
+	      //}
+	      hazeabund = haze[3];
+	      double P_base = haze[1] + haze[2];
+	      dlc = (prprof[j+1]*prprof[j+1]/(prprof[j]*prprof[j])) / ((P_base*P_base)-(haze[1]*haze[1]));
+	      hazedepth = hazexsec * hazeabund;
 	    }
 	    
 	    tauprof[ii][i] += hazedepth * dlgrid[i][j] * dlc;
@@ -1400,16 +1636,23 @@ void Planet::transTauProf(vector<double> wavens, string table)
 	  double dlc = 0.; // thickness of cloud inside the layer
 	  double hazeabund = 0.;
 	  
-	  if(hazetype!=0 && cloudmod>1){
-	    double absorbxsec = atmoslores->getAbsXsec(wavel,haze[1]);
-	    double scatterxsec = atmoslores->getScaXsec(wavel,haze[1]);
+	  if((hazetype!=0 && cloudmod>1) || cloudmod==4){
 	    double hazexsec;
-	    if(mode<=1 && streams==2){
-	      hazexsec = absorbxsec;
-	      doMie = true;
+
+	    if(cloudmod!=4){
+	      double absorbxsec = atmoshires->getAbsXsec(wavel,haze[1]);
+	      double scatterxsec = atmoshires->getScaXsec(wavel,haze[1]);
+	      hazexsec = absorbxsec + scatterxsec;
 	    }
-	    else hazexsec = absorbxsec + scatterxsec;
-	    
+	    // ada: For the power-law opacity cloud model, we use the hazexsec variable as the wavelength scaling (haze[1] is the power-law exponent). haze[0] is a constant optical depth per unit length, or linear attenuation coefficient, for the cloud.
+	    if(cloudmod==4){
+	      hazexsec = pow(wavel, haze[0]);
+	    }
+	    if(mode<=1 && streams==2 && cloudmod!=4){
+          hazexsec = atmoshires->getAbsXsec(wavel,haze[1]);
+	      doMie = true;
+        }
+        
 	    // Slab cloud model
 	    if(cloudmod==2){
 	      hazedepth = hazexsec * haze[0];
@@ -1437,6 +1680,16 @@ void Planet::transTauProf(vector<double> wavens, string table)
 	      hazedepth = hazexsec * hazeabund;
 	      dlc = dl;
 	    }
+	    if(cloudmod==4){
+	      // ada: Since the optical depth profile is set directly in this model, rather than the haze density, we don't need the path length.
+	      dlc = 1.;
+	      double scale = (haze[1]*(haze[2]-1))/haze[2];
+	      hazeabund = exp((prprof[j+1]-haze[1])/scale) - exp((prprof[j]-haze[1])/scale);
+	      if(hazeabund > 100.){
+		hazeabund = 100.;
+	      }
+	      hazedepth = hazexsec * hazeabund;
+	    }
 	    
 	    tauproflo[ii][i] += hazedepth * dlgrid[i][j] * dlc;
 	    // dlgrid = path length, deltaH = layer height, but multiply by dlc/deltaH to account for haze layer thickness
@@ -1451,8 +1704,8 @@ void Planet::transTauProf(vector<double> wavens, string table)
 
 // Computes the opacity table for the computed T-P profile from the input opacities.
 // This is also 1 shorter than the T-P profile.
-void Planet::getOpacProf(double rxsec, vector<double> wavelist, vector<double> abund, string table){
-  getSca(rxsec,wavelist,table);
+void Planet::getOpacProf(vector<double> rxsecs, vector<double> wavelist, vector<double> abund, string table){
+  getSca(rxsecs,wavelist,table);
   
   double ltmin = log10(tmin);
   double ltmax = log10(tmax);
@@ -1461,13 +1714,17 @@ void Planet::getOpacProf(double rxsec, vector<double> wavelist, vector<double> a
   double wval = 0.;
 
   int wstart = 0;
+
+  int nmol = nspec;
+  if(nmol==0) nmol = 1;
   
   if(table=="hires"){
+    // Species-by-species array of extinction opaities, used for contribution functions.
+    specopacprof = vector<vector<vector<double> > >(nmol,vector<vector<double> >(wavens.size(),vector<double>(nlayer,0)));
+    // Total gas opacity
     opacprof = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
   }
   if(table=="lores") opacproflo = vector<vector<double> >(wavenslo.size(),vector<double>(nlayer,0));
-  int nmol = nspec;
-  if(nmol==0) nmol = 1;
   
   // interpolation variables
   double opr1, opr2, opac;
@@ -1498,54 +1755,63 @@ void Planet::getOpacProf(double rxsec, vector<double> wavelist, vector<double> a
       int jt = (int)deltat;
       double dti = (tl-logtemp[jt])/(logtemp[jt+1]-logtemp[jt]);
       if(jt<0){
-	jt=0.;
-	dti=0.;
+        jt=0.;
+        dti=0.;
       }
       if(jt>ntemp-2){
-	jt=ntemp-2;
-	dti=0.999999;
+        jt=ntemp-2;
+        dti=0.999999;
       }
       double pl = 0.5*(log10(prprof[j]*prprof[j+1]));
       double deltap = (pl-lpmin)/(lpmax-lpmin)*(npress-1.);
       int jp = (int)deltap;
       double dpi = (pl-logpr[jp])/(logpr[jp+1]-logpr[jp]);
       if(jp<0){
-	jp=0.;
-	dpi=0.;
+        jp=0.;
+        dpi=0.;
       }
       if(jp>npress-2){
-	jp=npress-2;
-	dpi=0.999999;
+        jp=npress-2;
+        dpi=0.999999;
       }
 
       xsec[0] = 0.;
       xsec[1] = 0.;
       xsec[2] = 0.;
       xsec[3] = 0.;
+      
       if(table=="hires"){
-	for(int iii=0; iii<nmol; iii++){
-	  xsec[0] += mastertable[jp][jt][jw][iii]*abund[iii];
-	  xsec[1] += mastertable[jp][jt+1][jw][iii]*abund[iii];
-	  xsec[2] += mastertable[jp+1][jt][jw][iii]*abund[iii];
-	  xsec[3] += mastertable[jp+1][jt+1][jw][iii]*abund[iii];
-	}
-      }
-      if(table=="lores"){
-	for(int iii=0; iii<nmol; iii++){
-	  xsec[0] += lotable[jp][jt][jw][iii]*abund[iii];
-	  xsec[1] += lotable[jp][jt+1][jw][iii]*abund[iii];
-	  xsec[2] += lotable[jp+1][jt][jw][iii]*abund[iii];
-	  xsec[3] += lotable[jp+1][jt+1][jw][iii]*abund[iii];
+        for(int iii=0; iii<nmol; iii++){
+          xsec[0] = mastertable[jp][jt][jw][iii]*abund[iii];
+          xsec[1] = mastertable[jp][jt+1][jw][iii]*abund[iii];
+          xsec[2] = mastertable[jp+1][jt][jw][iii]*abund[iii];
+          xsec[3] = mastertable[jp+1][jt+1][jw][iii]*abund[iii];
+      
+	  // interpolate opacity and populate the specopacprof array
+	  opr1 = xsec[0] + dpi*(xsec[2]-xsec[0]);
+	  opr2 = xsec[1] + dpi*(xsec[3]-xsec[1]);
+	  opac = opr1 + dti*(opr2-opr1);
+	  
+	  specopacprof[iii][m][j] = opac + specscatable[iii][m][j];
+	  opacprof[m][j] += specopacprof[iii][m][j];
 	}
       }
       
-      // interpolate opacity
-      opr1 = xsec[0] + dpi*(xsec[2]-xsec[0]);
-      opr2 = xsec[1] + dpi*(xsec[3]-xsec[1]);
-      opac = opr1 + dti*(opr2-opr1);
+      if(table=="lores"){
+        for(int iii=0; iii<nmol; iii++){
+          xsec[0] += lotable[jp][jt][jw][iii]*abund[iii];
+          xsec[1] += lotable[jp][jt+1][jw][iii]*abund[iii];
+          xsec[2] += lotable[jp+1][jt][jw][iii]*abund[iii];
+          xsec[3] += lotable[jp+1][jt+1][jw][iii]*abund[iii];
+        }
+      
+        // interpolate opacity
+        opr1 = xsec[0] + dpi*(xsec[2]-xsec[0]);
+        opr2 = xsec[1] + dpi*(xsec[3]-xsec[1]);
+        opac = opr1 + dti*(opr2-opr1);
 
-      if(table=="hires") opacprof[m][j] = opac + scatable[m][j];
-      if(table=="lores") opacproflo[m][j] = opac + scatablelo[m][j];
+        opacproflo[m][j] = opac + scatablelo[m][j];
+      }
     }
   }
   return;
@@ -1553,17 +1819,30 @@ void Planet::getOpacProf(double rxsec, vector<double> wavelist, vector<double> a
 // end getOpacProf
 
 // Computes the scattering opacity table
-void Planet::getSca(double rxsec, vector<double> wavelist, string table)
+void Planet::getSca(vector<double> rxsecs, vector<double> wavelist, string table)
 {
-  if(table=="hires") scatable = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
+  int nmol = nspec;
+  if(nmol==0) nmol = 1;
+
+  if(table=="hires"){
+    // Species-by-species array of extinction opaities, used for contribution functions.
+    specscatable = vector<vector<vector<double> > >(nmol,vector<vector<double>>(wavens.size(),vector<double>(nlayer,0)));
+    // Total gas opacity
+    scatable = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
+  }
   if(table=="lores") scatablelo = vector<vector<double> >(wavenslo.size(),vector<double>(nlayer,0));
   
-  for(int m=0; m<wavelist.size(); m++){
-    for(int j=0; j<nlayer; j++){
-      double nu = c*10000./wavelist[m];
-      
-      if(table=="hires") scatable[m][j] = rxsec * pow(nu/5.0872638e14,4.0);
-      if(table=="lores") scatablelo[m][j] = rxsec * pow(nu/5.0872638e14,4.0);
+  for(int n=0; n<nmol; n++){
+    for(int m=0; m<wavelist.size(); m++){
+      for(int j=0; j<nlayer; j++){
+        double nu = c*10000./wavelist[m];
+	
+        if(table=="hires"){
+	      specscatable[n][m][j] = rxsecs[n] * pow(nu/5.0872638e14,4.0);
+	      scatable[m][j] += specscatable[n][m][j];
+	    }
+	    if(table=="lores") scatablelo[m][j] += rxsecs[n] * pow(nu/5.0872638e14,4.0);
+      }
     }
   }
 }

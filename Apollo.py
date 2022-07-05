@@ -1,7 +1,10 @@
 from __future__ import print_function
+from inspect import getmembers, isfunction
 import os
 import sys
 import numpy as np
+import pandas as pd
+import pickle
 import scipy.optimize as op
 from scipy.interpolate import interp1d
 from scipy.stats import invgamma
@@ -15,13 +18,21 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 # Comment out corner if not supported on your platform.
-import corner
+#import corner
 from src import wrapPlanet
 from src import ApolloFunctions as af
 from src import AddNoise
+from src.defaults import *
+from src.P_points import P_profiles
+from src import TP_profiles
 
 # An attempt at adding a multi-nested sampling option.
 #multinest = True
+
+REarth = 6.371e8   # R_Earth in cm
+parsec = 3.086e18  # parsec in cm
+RJup = 11.2        # R_Jupiter in R_Earth
+
 '''
 try:
     import pymultinest
@@ -89,58 +100,6 @@ for i in range(0,len(lines1)):
 
 fparams.close()
 fparams = open(settings,'r')
-
-#----------------------------------------------------------------------------------------#
-# Default Settings
-
-name = 'example'     # Bundled example file
-mode = 0             # Emission spectrum
-modestr = 'Resolved' # Needed for output file name
-parallel = True      # Parallel operation
-datain = 'examples/example.obs.dat' # Bundled example file
-polyfit = False      # Switch to normalize the spectrum to a polynomial fit
-norm = False         # Dummy variable if polyfit is false
-dataconv = 1         # Factor to convolve the observations to blur the spectrum or account for actual resolving power
-databin = 1          # Factor to bin down the observations for simpler fitting
-degrade = 1          # Factor to degrade the model spectrum for faster calculation
-prior = 'Uniform'    # Uniform priors
-nwalkers = 0         # Placeholder for later adjustment
-nsteps = 30000       # Tested minimum required number of steps
-tstar = 5770.        # Solar temperature
-rstar = 1.0          # Solar radius
-sma = 1.0            # Semi-Major Axis
-starspec = ''        # Optional stellar spectrum file
-dist = 10.0          # Standardized distance, 10 pc
-RA = 0.0             # Right ascension
-dec = 0.0            # Declination
-minmass = 0.5        # Minimum mass in Jupiter masses
-maxmass = 80.0       # Maximum mass in Jupiter masses
-hires = ''           # Default set of opacity tables to compute the spectra
-lores = 'lores'      # Default low-resolution tables to compute Teff
-minP = 0.0           # Pressure range to integrate over in cgs, default 1 mubar to 1 kbar.
-maxP = 9.0
-gray = False         # Used to create a gray atmosphere for testing
-vres = 71            # Number of layers for radiative transfer
-streams = 1          # Use 1-stream by default
-wavei = 0.60         # Full NIR wavelength range
-wavef = 5.00
-outmode = ''         # JWST observing mode
-exptime = 1000.      # Exposure time in seconds
-outdir = 'samples'   # Default output directory
-short = False        # Switch to create short output file names
-printfull = False    # Switch to print the full sample array instead of the last 10%
-opacdir = '../Opacities' # Default opacities directory
-
-norad = False        # Flags if no radius variable is in the input file
-natm = 0             # Placeholder in case T-P profile is omitted
-verbatim = False     # Interpolate the T-P profile
-tgray = 1500         # Temperature of gray atmosphere
-hazetype = 0         # No Clouds
-hazestr = 'None'     # No Clouds
-cloudmod = 0         # No Clouds
-
-hazelist = ['None','H2SO4','Polyacetylene','Tholin','Corundum','Enstatite','Forsterite','Iron','KCl','Na2S','NH3Ice','Soot','H2OCirrus','H2OIce','ZnS']
-
 #----------------------------------------------------------------------------------------#
 # Read in settings
 
@@ -167,6 +126,8 @@ while(True):
         if modestr=='Transit': mode = 2
     elif line[0]=='Parallel':
         if len(line)>1: parallel = strtobool(line[1])
+    elif line[0]=='Plotting':
+        if len(line)>1: plotting = strtobool(line[1])
     elif line[0]=='Data':
         if len(line)>1: datain = line[1]
         if len(line)>2:
@@ -204,6 +165,8 @@ while(True):
         if len(line)>1: minP = (float)(line[1]) + 6.0  # Convert from bars to cgs
         if len(line)>2: maxP = (float)(line[2]) + 6.0
         if maxP <= minP: maxP = minP + 0.01
+        if len(line)>3: P_profile = P_profiles[line[3]] + 6.0
+        else: P_profile = None
     elif line[0]=='Gray':
         if len(line)>1: gray = strtobool(line[1])
         if len(line)>2: tgray = line[2]
@@ -426,16 +389,6 @@ if smooth:
     anum = anum-1
 ilen = int(10 + c2-c1)
 ngas = g2-g1+1
-
-# Special handling if area ratio is used instead of radius
-if 'RtoD2U' in basic:
-    pos = basic.index('RtoD2U')
-    plparams[b1+pos] = 10**plparams[b1+pos] * dist**2 * 4.838e9**2 # convert (R/D)^2 to Earth radii^2
-    guess[b1+pos] = 10**guess[b1+pos] * dist**2 * 4.838e9**2 # convert (R/D)^2 to Earth radii^2    
-    sigma[b1+pos] = guess[b1+pos]*(10**sigma[b1+pos]-1.)
-    mu[b1+pos] = 10**mu[b1+pos] * dist**2 * 4.838e9**2
-    sigma[b1+pos] = sigma[b1+pos]*mu[b1+pos]
-    bounds[b1+pos] = 10**bounds[b1+pos] * dist**2 * 4.838e9**2
     
 # Meant to make the temperatures uniform in log space, not currently used
 '''
@@ -446,15 +399,23 @@ if atmtype == 'Layers':
     bounds[a1:a2,:] = np.log10(bounds[a1:a2,:])
 '''
 
-# Set statistical parameters    
-if 'logf' in end:
-    pos = end.index('logf')
-    plparams[e1+pos] = np.log(max(errhi**2))
-    guess[e1+pos] = plparams[e1+pos]
-    mu[e1+pos] = np.log(max(errhi**2))
-    sigma[e1+pos] = abs(mu[e1+pos])/10.
-    bounds[e1+pos,0] = np.log(min(errhi**2) * bounds[e1+pos,0])
-    bounds[e1+pos,1] = np.log(max(errhi**2) * bounds[e1+pos,1])
+minDL = 0
+maxDL = 0.
+
+# Set statistical parameters
+for n in range(0,enum):
+    if end[n][0:4]=='logf':
+        plparams[e1+n] = np.log(max(errhi**2) * min(errhi**2))/2.
+        guess[e1+n]    = plparams[e1+n]
+        mu[e1+n]       = plparams[e1+n]
+        sigma[e1+n]    = np.log(10.)
+        bounds[e1+n,0] = min(errhi**2) + bounds[e1+n,0]
+        bounds[e1+n,1] = max(errhi**2) + bounds[e1+n,1]
+    elif end[n][0:6]=='deltaL':
+        check0 = bounds[e1+n,0]*0.001*1.1
+        if minDL > check0: minDL = check0
+        check1 = bounds[e1+n,1]*0.001*1.1
+        if maxDL < check1: maxDL = check1
 
 # End of read in model parameters
 # End of read in input file
@@ -462,12 +423,8 @@ if 'logf' in end:
 #----------------------------------------------------------------------------------------#
 # Set the cross section tables if not already set.
 # Note that the "default" assumes a particular set of tables.
-minDL = 0
-maxDL = 0.
 if 'deltaL' in end:
     pos = end.index('deltaL')
-    minDL = bounds[e1+pos,0]*0.001
-    maxDL = bounds[e1+pos,1]*0.001
     
 wavei = max(wavelo) + minDL
 wavef = min(wavehi) + maxDL
@@ -521,7 +478,7 @@ resolvlo = (float)(opacshape[9])
 modwavelo = np.zeros(nwavelo)
 for i in range(0,nwavelo):
     modwavelo[i] = lminlo*np.exp(i/resolvlo)
-
+    
 # Set up wavelength ranges
 '''
 imin = np.where(opacwave<np.max(wavehi))[0]-1
@@ -539,7 +496,7 @@ if len(iend)==0: iend = [len(opacwave)-1]
 elif iend[-1]>=len(opacwave): iend[-1] = len(opacwave)-1
 
 # Truncated and band-limited spectrum that does not extend beyond the range of the observations
-modwave = opacwave[(int)(imin[0]):(int)(imax[0])]
+modwave = np.array(opacwave)[(int)(imin[0]):(int)(imax[0])]
 lenmod = len(modwave)
 '''
 # End set up model spectrum wavelength range
@@ -547,7 +504,6 @@ lenmod = len(modwave)
 #----------------------------------------------------------------------------------------#
 # Handle bands and optional polynomial fitting
 bindex, modindex, modwave = af.SliceModel(bandlo,bandhi,opacwave,minDL,maxDL)
-
 polyindex = -1
 for i in range(1,len(bindex)):
     if bindex[i][0] < bindex[i-1][0]:
@@ -580,8 +536,9 @@ else:
     masternorm = binflux
     mastererr = binerr
 
-if task=='Spectrum' or task=='Ensemble': modwave = opacwave
-
+if not task=='Retrieval':    
+    modwave = opacwave
+    
 # Get indices of the edges of the observation bins in the model spectrum
 bins = af.GetBins(modwave,binlo,binhi)
 ibinlo = bins[0]
@@ -602,8 +559,10 @@ mmw,rxsec = af.GetScaOpac(gases,plparams[g1:g2])
 mollist = af.GetMollist(gases)
 
 natm = a2-a1
-profin = np.zeros(natm)
-for i in range(0,natm): profin[i] = maxP + (minP-maxP)*i/(natm-1)
+if P_profile is not None:
+    profin = P_profile
+else:
+    profin = maxP + (minP-maxP)*np.arange(natm)/(natm-1)
 
 if atmtype == 'Parametric' and natm != 5:
     print('Error: wrong parameterization of T-P profile.')
@@ -617,11 +576,14 @@ cloudmod = int(cloudmod)
 hazetype = int(hazetype)
 
 atmmod = 0
-if atmtype=='Layers': atmmod = 0
+TP_functions = dict(getmembers(TP_profiles, isfunction))
+if atmtype=='Layers' or atmtype in TP_functions: atmmod = 0
 if atmtype=='Parametric': atmmod = 1
 
 switches = [mode,cloudmod,hazetype,streams,atmmod]
 
+finalnames = []
+for i in nvars: finalnames.append(pnames[i])
 guess  = guess[nvars]
 mu     = mu[nvars]
 sigma  = sigma[nvars]
@@ -728,29 +690,33 @@ def GetModel(x):
         mmw,rxsec = af.GetScaOpac(gases, abund[1:])
         
     params1 = np.zeros(ilen)
+
+    # Dummy variables in case they cannot be calculated.
+    mass = 0.
+    ctoo = 0.
+    fetoh = 0.
+    teff = 0.
     
     # Radius handling
     if 'Rad' in basic:
         pos = basic.index('Rad')
         params1[0] = x[b1+pos]
-    elif 'RtoD' in basic:
-        pos = basic.index('RtoD')
-        params1[0] = 10**x[b1+pos]*dist*4.838e9 # convert R/D to Earth radii
-    elif 'RtoD2U' in basic:
-        pos = basic.index('RtoD2U')
-        params1[0] = np.sqrt(x[b1+pos])
+        radius = REarth*x[b1+pos]
     else:
         global norad
         norad = True
-        params1[0] = 11.2
+        params1[0] = RJup
+        radius = RJup*REarth
         # Default radius = Jupiter
 
     # Gravity handling
     if 'Log(g)' in basic:
         pos = basic.index('Log(g)')
         params1[1] = x[b1+pos]
+        grav = 10**x[b1+pos]
     else:
         params1[1] = 4.1
+        grav = 10**4.1
 
     # Cloud deck handling
     if 'Cloud_Base' in clouds:
@@ -770,11 +736,48 @@ def GetModel(x):
         # Default cloudless
     if params1[2] < minP: params1[2] = minP+0.01
     # Ensures the cloud deck is inside the model bounds.
+
+    mass = grav*radius*radius/6.67e-8/1.898e30
+
+    # Compute C/O and [Fe/H]
+    carbon = 0.
+    oxygen = 0.
+    metals = 0.
+    ccompounds = ['ch4','co','co2','hcn']
+    cmult = [1.,1.,1.,1.]
+    ocompounds = ['h2o','co','co2','tio','vo']
+    omult = [1.,1.,2.,1.,1.]
+    zcompounds = ['h2o','ch4','co','co2','nh3','h2s','Burrows_alk','Lupu_alk','crh','feh','tio','vo','hcn','n2','ph3']
+    zmult = [16.,12.,28.,44.,14., 32.,24.,24.,52.,56., 64.,67.,26.,28.,31.]
+
+    for i in range(0,len(ccompounds)):
+        if ccompounds[i] in gases:
+            j = gases.index(ccompounds[i])
+            carbon = carbon + cmult[i]*(10**x[g1+j-1]) # -1 because of hydrogen
+    for i in range(0,len(ocompounds)):
+        if ocompounds[i] in gases:
+            j = gases.index(ocompounds[i])
+            oxygen = oxygen + omult[i]*(10**x[g1+j-1])
+    for i in range(0,len(zcompounds)):
+        if zcompounds[i] in gases:
+            j = gases.index(zcompounds[i])
+            metals = metals + zmult[i]*(10**x[g1+j-1])
+
+    ctoo = carbon/oxygen
+    fetoh = np.log10(metals/0.0196)
+
+    # For fractional cloud coverage, generate the cloud-free
+    # and cloudy spectra, then mix according to the fraction.
+    if 'Cloud_Fraction' in clouds:
+        pos = clouds.index('Cloud_Fraction')
+        cloud_fraction = x[c1+pos]
+    else:
+        cloud_fraction = 1
     
     params1[3] = tstar
     params1[4] = rstar
-    params1[5] = mmw
-    params1[6] = rxsec
+    params1[5] = np.sum(mmw)
+    params1[6] = np.sum(rxsec)
     params1[7] = minP
     params1[8] = maxP
     params1[9] = sma
@@ -785,20 +788,40 @@ def GetModel(x):
             params1[11] = params1[11]
             params1[12] = params1[12] + 6.
         if cloudmod==2: params1[13] = params1[12] + params1[13]
+
+    if cloudmod==4:
+        for i in range(0,5): params1[i+10] = x[c1+i]
+        params1[11] = params1[11] + 6.
+        params1[12] = params1[12] + 6.
         
     tpprof = np.zeros(natm)
     # Gray atmosphere approximation
     if gray:
         tplong = np.zeros(vres)
         for i in range(0,vres): tplong[i] = tgray
-        planet.set_Params(params1,abund,tplong)
-        specflux = planet.get_Spectrum()
+        planet.set_Params(params1,abund,rxsec,tplong)
+        if cloud_fraction == 0:
+            specflux = planet.get_ClearSpectrum()
+        elif cloud_fraction == 1:
+            specflux = planet.get_Spectrum()
+        else:
+            specflux = cloud_fraction*np.asarray(planet.get_Spectrum()) + (1-cloud_fraction)*np.asarray(planet.get_ClearSpectrum())
 
     # Build atmosphere temperature profile and compute spectrum
     else:
         for i in range(0,len(tpprof)): tpprof[i] = x[i+a1]
         if atmtype=='Parametric': tpprof[1] = 10**tpprof[1]
-    
+
+        if atmtype in TP_functions:
+            tplong = (TP_functions[atmtype])(*tpprof,num_layers_final=vres,P_min=minP-6,P_max=maxP-6)
+            # Compute spectrum
+            planet.set_Params(params1,abund,rxsec,tplong)
+            if cloud_fraction == 0:
+                specflux = planet.get_ClearSpectrum()
+            elif cloud_fraction == 1:
+                specflux = planet.get_Spectrum()
+            else:
+                specflux = cloud_fraction*np.asarray(planet.get_Spectrum()) + (1-cloud_fraction)*np.asarray(planet.get_ClearSpectrum())
         if atmtype == 'Layers':
             if verbatim: tplong = tpprof
             elif natm==0:
@@ -809,7 +832,7 @@ def GetModel(x):
                 for i in range(0,vres):
                     if tpprof[0]<75.: tplong[i]=75.
                     elif tpprof[0]>4000.: tplong[i]=4000.
-                    else: tplong[i]=tpprof[0]            
+                    else: tplong[i]=tpprof[0]
             else:
                 # compute cubic spline T-P profile
                 tplong = np.zeros(vres)
@@ -820,25 +843,42 @@ def GetModel(x):
                     if(tplong[i]<75.): tplong[i]=75.
                     if(tplong[i]>4000.): tplong[i]=4000.
 
+            # Reverse the T-P profile--required to convert to the current radiative transfer paradigm.                     
+            tplong = tplong[::-1]
+            np.save(outdir+outfile+"T-P_array_linear", tplong)
+
             # Compute spectrum
-            planet.set_Params(params1,abund,tplong)
-            specflux = planet.get_Spectrum()
+            planet.set_Params(params1,abund,rxsec,tplong)
+            if cloud_fraction == 0:
+                specflux = planet.get_ClearSpectrum()
+            elif cloud_fraction == 1:
+                specflux = planet.get_Spectrum()
+            else:
+                specflux = cloud_fraction*np.asarray(planet.get_Spectrum()) + (1-cloud_fraction)*np.asarray(planet.get_ClearSpectrum())
         if atmtype == 'Parametric':
             # Compute spectrum
-            planet.set_Params(params1,abund,tpprof)
-            specflux = planet.get_Spectrum()
+            planet.set_Params(params1,abund,rxsec,tpprof)
+            if cloud_fraction == 0:
+                specflux = planet.get_ClearSpectrum()
+            elif cloud_fraction == 1:
+                specflux = planet.get_Spectrum()
+            else:
+                specflux = cloud_fraction*np.asarray(planet.get_Spectrum()) + (1-cloud_fraction)*np.asarray(planet.get_ClearSpectrum())
 
     for i in range(0,nband):
         sname = 'S' + str(i)
         if sname in end:
             pos = end.index(sname)
             bandscale = x[e1+pos]
-            print(i,bandscale,len(specflux),bindex[i])
-            for j in range(bindex[i][0],bindex[i][1]):
+            for j in range(modindex[i][0],modindex[i][1]):
                 specflux[j] = specflux[j] * bandscale
             
     teff = planet.get_Teff()
-    if task!='Ensemble': print('Teff: ',teff)
+    if task!='Ensemble':
+        print('M/Mj: ',mass)
+        print('C/O: ',ctoo)
+        print('[Fe/H]: ',fetoh)
+        print('Teff: ',teff)
 
     # Plot the results of get_Spectrum() directly for testing purposes.
     '''
@@ -849,45 +889,42 @@ def GetModel(x):
     sys.exit()
     '''
     
-    return specflux
+    return specflux, [mass,ctoo,fetoh,teff]
 
 # End of GetModel function
 
 #----------------------------------------------------------------------------------------#
 # Likelihood function for "Retrieval" mode.
 
-def lnlike(x,ibinlo,ibinhi,binflux,binerrhi):
+def lnlike(x,ibinlo,ibinhi):
     params = plparams
     for i in range(0,len(nvars)):
         params[nvars[i]] = x[i]
         
-    modflux = GetModel(params)
+    modflux, derived = GetModel(params)
     
     theta_planet = 0.
     if 'Rad' in basic:
         pos = basic.index('Rad')
-        theta_planet = params[b1+pos]*6.371e8/dist/3.086e18
-    elif 'RtoD' in basic:
-        pos = basic.index('RtoD')
-        theta_planet = 10**params[b1+pos]
-    elif 'RtoD2U' in basic:
-        pos = basic.index('RtoD2U')
-        theta_planet = np.sqrt(params[b1+pos])*6.371e8/dist/3.086e18
+        theta_planet = params[b1+pos]*REarth/dist/parsec
     else:
-        theta_planet = 11.2*6.371e8/dist/3.086e18
+        theta_planet = params[b1+pos]*REarth/dist/parsec
         # Default radius = Jupiter
-    
+        
     # Statistical parameters
-    if 'deltaL' in end:
-        pos = end.index('deltaL')
-        deltaL = params[e1+pos]
-    else:
-        deltaL = 0.0
-    if 'logf' in end:
-        pos = end.index('logf')
-        lnf = params[e1+pos]
-    else:
-        lnf = -100.0
+
+    deltaL = np.zeros(nband)
+    lnf = np.zeros(nband)-100.0
+    
+    for n in range(0,enum):
+        if end[n][0:6]=='deltaL':
+            if end[n]=='deltaL': pos = 0
+            else: pos = int(end[n][6:])
+            deltaL[pos] = params[e1+n]
+        if end[n][0:4]=='logf':
+            if end[n]=='logf': pos = 0
+            else: pos = int(end[n][4:])
+            lnf[pos] = params[e1+n]
 
     # Multiply by solid angle and collecting area
     fincident = np.zeros(len(modflux))
@@ -922,9 +959,16 @@ def lnlike(x,ibinlo,ibinhi,binflux,binerrhi):
     '''
         
     # Adjust for wavelength calibration error
-    newibinlo = ibinlo + delibinlo*deltaL
-    newibinhi = ibinhi + delibinhi*deltaL
-    
+    newibinlo = np.zeros(len(ibinlo))
+    newibinhi = np.zeros(len(ibinhi))
+
+    di = 0
+    for i in range(0,nband):
+        for j in range(di,di+len(bandlo[i])):
+            newibinlo[j] = ibinlo[j] + deltaL[i] * delibinlo[j]
+            newibinhi[j] = ibinhi[j] + deltaL[i] * delibinhi[j]
+        di = di + len(bandlo[i])
+        
     # Bin and normalize spectrum
     if norm:
         normspec = af.NormSpec(modwave,fincident,snormtrunc,enormtrunc)
@@ -940,15 +984,21 @@ def lnlike(x,ibinlo,ibinhi,binflux,binerrhi):
     convmod = []
     for i in range(0,len(modindex)):
         convmod.append(af.ConvSpec(normspec[modindex[i][0]:modindex[i][1]],binw))
-        print(modindex[i][0],modindex[i][1],modindex[i][1]-modindex[i][0])
-        
-    convmodfl = [item for sublist in convmod for item in sublist]
-    binmod = af.BinModel(convmodfl,newibinlo,newibinhi)
 
+    convmodfl = [item for sublist in convmod for item in sublist]
+    
+    binmod = af.BinModel(convmodfl,newibinlo,newibinhi)
+    
     iw = [i for i in range(0,len(binmod)) if ((i<polyindex or polyindex==-1) and binmod[i]!=0)]
     s2 = np.zeros(len(mastererr))
-    for i in range(0,len(mastererr)): s2[i] = mastererr[i]*mastererr[i] + np.exp(lnf)
+    di = 0
+    for i in range(0,len(lnf)):
+        for j in range(di,di+len(bandlo[i])):
+            s2[j] = mastererr[j]*mastererr[j] + np.exp(lnf[i])
+        di = di + len(bandlo[i])
+        
     likelihood = 0
+    
     for i in iw:
         likelihood = likelihood + (masternorm[i]-binmod[i])**2/s2[i] + np.log(2.*np.pi*s2[i])
     likelihood = likelihood * -0.5
@@ -960,14 +1010,17 @@ def lnlike(x,ibinlo,ibinhi,binflux,binerrhi):
     # Uncomment to halt execution after the first sample for testing.
     #sys.exit()
         
-    return likelihood
+    return likelihood, derived
     
 # End of likelihood function
 
 #----------------------------------------------------------------------------------------#
 # Prior probability
 
-def lnprior(x,teff):
+def lnprior(x,derived):
+    mass = derived[0]
+    teff = derived[3]
+    
     params = plparams
     for i in range(0,len(nvars)):
         params[nvars[i]] = x[i]
@@ -975,8 +1028,7 @@ def lnprior(x,teff):
     priors = np.zeros(ndim)
     for i in range(0,ndim):
         if not bounds[i,0] <= x[i] <= bounds[i,1]:
-            if not e1 <= i < e2:
-                print('Out of Bound: {0:s} {1} {2} {3}'.format(pnames[nvars[i]],x[i],bounds[i,0],bounds[i,1]))
+            print('Out of Bound: {0:s} {1} {2} {3}'.format(pnames[nvars[i]],x[i],bounds[i,0],bounds[i,1]))
             return -np.inf
         if smooth and nvars[i]==a2:
             priors[i] = invgamma.pdf(x[i],1,scale=5.e-5) # gamma with inverse gamma function prior, alpha=1, beta=5.e-5
@@ -987,35 +1039,29 @@ def lnprior(x,teff):
                 priors[i] = 1/sigma[i]/2.5066 * np.exp(-(x[i]-mu[i])*(x[i]-mu[i])/2/sigma[i]/sigma[i])
     abundsum = np.sum(10**params[g1:g2])
     if abundsum>1.0:
-        print('Prior Failed\n')
+        print('Sum of abundances > 1\n')
         return -np.inf
     
     grav = 0.
     if 'Log(g)' in basic:
         pos = basic.index('Log(g)')
         grav = 10**params[b1+pos]
-    if 'Rad' in basic:
-        pos = basic.index('Rad')
-        radius = 6.371e8*params[b1+pos]
-    elif 'RtoD' in basic:
-        pos = basic.index('RtoD')
-        radius = 10**params[b1+pos]*dist*4.838e9*6.371e8 # convert R/D to Earth radii
-    elif 'RtoD2U' in basic:
-        pos = basic.index('RtoD2U')
-        radius = np.sqrt(params[b1+pos])*6.371e8
-    else: radius = 11.2*6.371e8
-    mass = grav*radius*radius/6.67e-8/1.898e30
+    else: grav = 10**4.1
+    
     if mass<minmass or mass>maxmass:
-        print('Mass out of Bound. Rad={0} log(g)={1} Mass={2}'.format(radius/6.371e8/11.2,np.log10(grav),mass))
+        print('Mass out of Bound. Rad={0} log(g)={1} Mass={2}'.format(radius/REarth/RJup,np.log10(grav),mass))
         return -np.inf
 
     if len(gases)==0:
         mmw = 2.28
     else:
         mmw,rxsec = af.GetScaOpac(gases,params[g1:g2])
-    scale = 1.38e-16*teff/mmw/grav;
+    scale = 1.38e-16*teff/np.sum(mmw)/grav;
     if scale/radius > 0.05:
-        print('Gravity too low for reliable convergence. teff={0}, mu={1}, log(g)={2}, scale={3}, rad={4}, ratio={5}'.format(teff,mmw,np.log10(grav),scale/1.e5,radius/1.e5,scale/radius))
+        print('Gravity too low for reliable convergence. teff={0}, mu={1}, log(g)={2}, scale={3}, rad={4}, ratio={5}'.format(teff,np.sum(mmw),np.log10(grav),scale/1.e5,radius/1.e5,scale/radius))
+        return -np.inf
+    if np.isnan(teff):
+        print('Teff returned nan.')
         return -np.inf
     
     penalty = 0
@@ -1024,12 +1070,26 @@ def lnprior(x,teff):
         for i in range(a1+1,a2-1):
             penalty = penalty - 0.5/gamma*(params[i+1] - 2*params[i] + params[i-1])**2
         penalty = penalty - 0.5*np.log(2*np.pi*gamma)*(a2-a1)
+
+    # ada: Add a check to make sure the Madhusudhan-Seager T-P parametrization has correct monotonicity.
+    if atmtype == "power_linear":
+        if (params[a2-3] < 0) or (params[a2-2] < 0) or (params[a2-1] < 0):
+            print("Negative temperatures in one or more proposed parameters.")
+            return -np.inf
+        # ada: Removing the condition that the middle temperature node be >= the TOA temperature means we can have an inversion layer.
+        elif params[a2-2] < params[a2-3]:
+            print("Prior failed: profile set up for monotonically increasing temperature structure only. T_mid={}K < T_TOA={}K.".format(params[a2-2],params[a2-3]))
+            return -np.inf
+        elif params[a2-1] < params[a2-2]:
+            print("Prior failed: profile set up for monotonically increasing temperature structure only. T_max={}K < T_mid={}K.".format(params[a2-1],params[a2-2]))
+            return -np.inf
+
     # These lines weight the parameters based on the width of the prior if the boundaries cut off a significant amount of the normal distribution
     # However, it's not clear how important they are to comparing relative likelihoods
     #priors[1] = priors[1]/0.520
     #for i in range(9,14):
     #    priors[i] = priors[i]/0.9772
-
+    
     return np.log(np.prod(priors))+penalty
 
 # End of prior function
@@ -1042,68 +1102,20 @@ def lnprob(x,binslo,binshi,fluxrat,frathigh):
     for i in range(0,len(nvars)):
         params[nvars[i]] = x[i]
         
-    # Dummy variables in case they cannot be calculated.
-    mass = 0.
-    ctoo = 0.
-    fetoh = 0.
-    teff = 0.
+    like, derived = lnlike(x,binslo,binshi)
+    lp = lnprior(x,derived)
     
-    # Compute mass
-    grav = 0.
-    if 'Log(g)' in basic:
-        pos = basic.index('Log(g)')
-        grav = 10**params[b1+pos]
-    if 'Rad' in basic:
-        pos = basic.index('Rad')
-        radius = 6.371e8*params[b1+pos]
-    elif 'RtoD' in basic:
-        pos = basic.index('RtoD')
-        radius = 10**params[b1+pos]*dist*4.838e9*6.371e8 # convert R/D to Earth radii
-    elif 'RtoD2U' in basic:
-        pos = basic.index('RtoD2U')
-        radius = np.sqrt(params[b1+pos])*6.371e8
-    else: radius = 11.2*6.371e8
-    mass = grav*radius*radius/6.67e-8/1.898e30
-
-    # Compute C/O and [Fe/H]
-    carbon = 0.
-    oxygen = 0.
-    metals = 0.
-    ccompounds = ['ch4','co','co2','hcn']
-    cmult = [1.,1.,1.,1.]
-    ocompounds = ['h2o','co','co2','tio','vo']
-    omult = [1.,1.,2.,1.,1.]
-    zcompounds = ['h2o','ch4','co','co2','nh3','h2s','Burrows_alk','Lupu_alk','crh','feh','tio','vo','hcn','n2','ph3']
-    zmult = [16.,12.,28.,44.,14., 32.,24.,24.,52.,56., 64.,67.,26.,28.,31.]
-
-    for i in range(0,len(ccompounds)):
-        if ccompounds[i] in gases:
-            j = gases.index(ccompounds[i])
-            carbon = carbon + cmult[i]*(10**params[g1+j-1]) # -1 because of hydrogen
-    for i in range(0,len(ocompounds)):
-        if ocompounds[i] in gases:
-            j = gases.index(ocompounds[i])
-            oxygen = oxygen + omult[i]*(10**params[g1+j-1])
-    for i in range(0,len(zcompounds)):
-        if zcompounds[i] in gases:
-            j = gases.index(zcompounds[i])
-            metals = metals + zmult[i]*(10**params[g1+j-1])
-
-    ctoo = carbon/oxygen
-    fetoh = np.log10(metals/0.0196)
-    
-    teff = planet.get_Teff()
-    lp = lnprior(x,teff)
     # Check if any of the priors were out of bounds.
     if not np.isfinite(lp):
-        return -np.inf, [mass,ctoo,fetoh,teff]
+        return -np.inf, derived
 
     # Check if an error returned a non-result.
-    prob = lp + lnlike(x,binslo,binshi,fluxrat,frathigh)
-    if np.isnan(prob):
-        return -np.inf, [mass,ctoo,fetoh,teff]
+    prob = lp + like
     
-    return prob, [mass,ctoo,fetoh,teff]
+    if np.isnan(prob):
+        return -np.inf, derived
+        
+    return prob, derived
 
 # End of probability function
 
@@ -1125,13 +1137,8 @@ plt.show(block=False)
 
 #----------------------------------------------------------------------------------------#
 # Set up the MCMC run
-#print('Likelihood of input parameters: {0:f}'.format(lnlike(guess,ibinlo,ibinhi,binflux,binerr)))
 
-# I have no idea why, but the first time GetModel() runs, it spits out a blackbody spectrum.
-# This is a "burn-in" step to avoid that and should not be commented out or removed.
-testspectrum = GetModel(plparams)
-
-if task=='Ensemble':
+if task=='Ensemble' or task=='Spectral_Range':
 
     print(eplist)
     print(len(eplist))
@@ -1139,26 +1146,19 @@ if task=='Ensemble':
     allspec = np.zeros((len(eplist),len(modwave)))
     for ii in range(0,len(eplist)):
         print('Model #{0:d}'.format(ii))
-        radfinal = 11.2
+        radfinal = RJup
 
         pos = 0
         theta_planet = 0.
         if 'Rad' in basic:
             pos = basic.index('Rad')
-            theta_planet = eplist[ii][b1+pos]*6.371e8/dist/3.086e18
+            theta_planet = eplist[ii][b1+pos]*REarth/dist/parsec
             radfinal = eplist[ii][b1+pos]
-        elif 'RtoD' in basic:
-            pos = basic.index('RtoD')
-            theta_planet = 10**eplist[ii][b1+pos]
-            radfinal = 10**eplist[ii][b1+pos]*dist*3.086e18/6.371e8
-        elif 'RtoD2U' in basic:
-            pos = basic.index('RtoD2U')
-            theta_planet = np.sqrt(eplist[ii][b1+pos])*6.371e8/dist/3.086e18
-            radfinal = np.sqrt(eplist[ii][b1+pos])
         else:
-            theta_planet = 11.2*6.371e8/dist/3.086e18
+            theta_planet = RJup*REarth/dist/parsec
             # Default radius = Jupiter
-
+            
+        # Probably need to handle deltaL here.
         print(eplist[ii])
         spectrum = GetModel(eplist[ii])
         
@@ -1181,6 +1181,7 @@ if task=='Ensemble':
         for j in range(0,len(eplist)):
             fout.write(' {0:8.5e}'.format(allspec[j][i]))
         fout.write('\n')
+        
     sys.exit()
 
 # End of ensemble-specific section
@@ -1190,8 +1191,7 @@ if task=='Ensemble':
 
 if task=='Retrieval':
     # Used to test the serial part of the code at the command line
-    print('Test')
-    print('Likelihood of input parameters: {0:f}'.format(lnlike(guess,ibinlo,ibinhi,binflux,binerr)))
+    print('Reduced log-likelihood of input parameters: {0:f}'.format(lnprob(guess,ibinlo,ibinhi,binflux,binerr)[0]/len(ibinlo)))
     #sys.exit()
 
     eps = 0.01
@@ -1206,7 +1206,7 @@ if task=='Retrieval':
         if not pool.is_master():
             pool.wait()
             sys.exit(0)
-    
+            
     pos = [guess + 0.1*eps*guess*np.random.randn(ndim) for i in range(nwalkers)]
 
     # Part of planned Multi-Nested Sampling capability
@@ -1230,17 +1230,14 @@ if task=='Retrieval':
     else: foutname = outdir + outfile + 'dat'
     fchain = open(foutname,'w')
 
-    if printfull: fchain.write('{0:d} {1:d} {2:d}'.format(nwalkers,nsteps,ndim+5))
-    else: fchain.write('{0:d} {1:d} {2:d}'.format(nwalkers,(int)(nsteps/10),ndim+5))
+    if printfull: fchain.write('Samples {0:d} {1:d} {2:d} '.format(nwalkers,nsteps,ndim+5))
+    else: fchain.write('Samples {0:d} {1:d} {2:d} '.format(nwalkers,(int)(nsteps/10),ndim+5))
 
-    if atmtype=='Layers': fchain.write(' {0:d} {1:f} {2:f}\n'.format(a2-a1,minP-6.,maxP-6.))
-    else: fchain.write('\n')
+    if atmtype=='Layers': fchain.write('Layered {0:d} {1:f} {2:f}\n'.format(a2-a1,minP-6.,maxP-6.))
+    else: fchain.write('Parametric\n')
 
-    for i in range(0,len(pnames)):
-        if pnames[i]=='RtoD' or pnames[i]=='RtoD2U':
-            fchain.write('Rad ')
-        else:
-            fchain.write('{0:s} '.format(pnames[i]))
+    for i in range(0,len(finalnames)):
+        fchain.write('{0:s} '.format(finalnames[i]))
     fchain.write('Mass C/O [Fe/H] Teff Likelihood\n')
 
     #----------------------------------------------------------------------------------------#
@@ -1248,28 +1245,21 @@ if task=='Retrieval':
 
     maxlikli = 0.
     medianparams = guess
-    
+    nsteps = 50
     i = 0
     for sample in sampler.sample(pos, iterations=nsteps):
-        print('Sample: {0:d}\n'.format(i))
         coords = reader.get_last_sample().coords
         blobs = reader.get_blobs()[i]
         likli = reader.get_log_prob()[i]
-        if max(likli) > maxlikli:
+        if max(likli) > maxlikli or i==0:
             j = np.argmax(likli)
             maxlikli = likli[j]
             medianparams = coords[j]
-        print(reader.get_log_prob())
         if i%100==0 or printfull: print('Step number {0:d}'.format(i+1))
         if printfull or i>=nsteps*0.9:
             for i2 in range(0,len(coords)):
                 for i3 in range(0,len(coords[i2])):
-                    if pnames[i3]=='RtoD2U':
-                        fchain.write('{0:f} '.format(np.sqrt(coords[i2][i3])/11.2))
-                    elif pnames[i3]=='Rad' or pnames[i3]=='RtoD':
-                        fchain.write('{0:f} '.format(coords[i2][i3]/11.2))
-                    else:
-                        fchain.write('{0:f} '.format(coords[i2][i3]))
+                    fchain.write('{0:f} '.format(coords[i2][i3]))
                 for i3 in range(0,len(blobs[i2])):
                     fchain.write('{0:f} '.format(blobs[i2][i3]))
                 fchain.write('{0:f}\n'.format(likli[i2]/len(masternorm)))
@@ -1340,8 +1330,8 @@ if task=='Retrieval':
     bnames2.append('[Fe/H]')
     bnames2.append('Teff')
 
-    baselist = ['Rad','RtoD','RtoD2U','Log(g)','Cloud_Base','P_cl','Mass','C/O','[Fe/H]','Teff']
-    bnamelist = ['Radius (R$_J$)','Radius (R$_J$)','Radius (R$_J$)','log(g)','P$_{cloud}$ (bar)','Base Pressure (bar)','Mass (M$_J$)','C/O','[Fe/H]','T$_{eff}$ (K)']
+    baselist = ['Rad','Log(g)','Cloud_Base','P_cl','Mass','C/O','[Fe/H]','Teff']
+    bnamelist = ['Radius (R$_J$)','log(g)','P$_{cloud}$ (bar)','Base Pressure (bar)','Mass (M$_J$)','C/O','[Fe/H]','T$_{eff}$ (K)']
     gaslist = ['h2he','h2','he','h-','h2o','ch4','co','co2','nh3','h2s','Burrows_alk','Lupu_alk','crh','feh','tio','vo','hcn','n2','ph3']
     gnamelist = ['H$_2$+He','H$_2$','He','[H-]','[H$_2$O]','[CH$_4$]','[CO]','[CO$_2$]','[NH$_3$]','[H$_2$S]','[Na,K]','[Na,K]','[CrH]','[FeH]','[TiO]','[VO]','[HCN]','[N2]','[PH3]']
     bnames = []
@@ -1358,12 +1348,6 @@ if task=='Retrieval':
             gnames.append(gnamelist[j])
 
     rpos = -1
-    if 'RtoD2U' in basic:
-        rpos = basic.index('RtoD2U')
-        bnames2[rpos] = 'Rad'
-    if 'RtoD' in basic:
-        rtemp = basic.index('RtoD')
-        bnames2[rtemp] = 'Rad'
     ppos = -1
     if 'P_cl' in basic:
         ppos = basic.index('P_cl')
@@ -1376,10 +1360,6 @@ if task=='Retrieval':
     for i in range(0,len(bsamples3)):
         for j in range(0,lenbasic):
             if j==rpos:
-                bsamples3[i,j] = np.sqrt(bsamples2[i,j])/11.2
-            elif basic[j]=='Rad' or basic[j]=='RtoD':
-                bsamples3[i,j] = bsamples2[i,j]/11.2
-            else:
                 bsamples3[i,j] = bsamples2[i,j]
             if j==ppos:
                 bsamples3[i,j] = bsamples3[i,j]-6.
@@ -1396,41 +1376,43 @@ if task=='Retrieval':
     brange = np.zeros(len(bnames))
     for i in range(0,len(bnames)): brange[i]=0.99
     
-    fig = corner.corner(gsamples3,labels=gnames,range=grange,plot_datapoints=False,labelsize=24)
-    fig.subplots_adjust(left=0.10,bottom=0.10,wspace=0,hspace=0)
-    fig1name = 'plots' + outfile + 'gases.png'
-    fig.savefig(fig1name)
-    
-    fig2 = corner.corner(bsamples4,labels=bnames,range=brange,plot_datapoints=False,labelsize=24)
-    fig2.subplots_adjust(left=0.10,bottom=0.10,wspace=0,hspace=0)
-    fig2name = 'plots' + outfile + 'basic.png'
-    fig2.savefig(fig2name)
-    
-    # Plot the T-P profile
-    
-    plist = np.zeros(anum)
-    for i in range(0,anum): plist[i] = 10**(maxP + (minP-maxP)*i/(anum-1)) * 1.e-6
-    tlist = np.percentile(tsamples3,[16,50,84],axis=0)
-
-    fig3 = plt.figure(figsize=(8,6))
-    ax = fig3.add_subplot(111)
-    plt.axis((0,3000,10**(maxP-6.),10**(minP-6.)))
-    ax.set_yscale('log')
-    plt.xlabel('T (K)',fontsize=14)
-    plt.ylabel('P (bar)', fontsize=14)
-
-    ax.fill_betweenx(plist,tlist[0],tlist[2],facecolor='#ff8080')
-    ax.plot(tlist[0],plist,c='r')
-    ax.plot(tlist[1],plist,c='k')
-    ax.plot(tlist[2],plist,c='r')
-
-    fig3name = 'plots' + outfile + 'TP.png'
-    fig3.savefig(fig3name)
+    if plotting:
+        fig = corner.corner(gsamples3,labels=gnames,range=grange,plot_datapoints=False,labelsize=24)
+        fig.subplots_adjust(left=0.10,bottom=0.10,wspace=0,hspace=0)
+        fig1name = 'plots' + outfile + 'gases.png'
+        fig.savefig(fig1name)
+        
+        fig2 = corner.corner(bsamples4,labels=bnames,range=brange,plot_datapoints=False,labelsize=24)
+        fig2.subplots_adjust(left=0.10,bottom=0.10,wspace=0,hspace=0)
+        fig2name = 'plots' + outfile + 'basic.png'
+        fig2.savefig(fig2name)
+        
+        # Plot the T-P profile
+        
+        plist = np.zeros(anum)
+        for i in range(0,anum): plist[i] = 10**(maxP + (minP-maxP)*i/(anum-1)) * 1.e-6
+        tlist = np.percentile(tsamples3,[16,50,84],axis=0)
+        
+        fig3 = plt.figure(figsize=(8,6))
+        ax = fig3.add_subplot(111)
+        plt.axis((0,3000,10**(maxP-6.),10**(minP-6.)))
+        ax.set_yscale('log')
+        plt.xlabel('T (K)',fontsize=14)
+        plt.ylabel('P (bar)', fontsize=14)
+        
+        ax.fill_betweenx(plist,tlist[0],tlist[2],facecolor='#ff8080')
+        ax.plot(tlist[0],plist,c='r')
+        ax.plot(tlist[1],plist,c='k')
+        ax.plot(tlist[2],plist,c='r')
+        
+        fig3name = 'plots' + outfile + 'TP.png'
+        fig3.savefig(fig3name)
     
     # End of retrieval plots
 
     #----------------------------------------------------------------------------------------#
     # Write parameter file of best fit model
+    finallower, medianparams_all, finalupper = np.percentile(sampler.chain[:,first:,:],[16,50,84],axis=0)[:,0]
 
     finalparams2 = np.percentile(sampler.chain[:,first:,:],[50,84],axis=0)[:,0]
 
@@ -1456,13 +1438,13 @@ if task=='Retrieval':
         
     outparams = '.' + outfile + 'retrieved.dat'
     ffout = open(outparams,'w')
-
+    
     ffout.write('Mode         {0:s}\n'.format(modestr))
     ffout.write('Object       {0:s}\n'.format(name))
     ffout.write('Star         {0:5.0f} {1:5.2f} {2:8.3f}\n'.format(tstar,rstar,sma))
     if not starspec=='': ffout.write('Star_Spec   {0:s}\n'.format(starspec))
     ffout.write('Location     {0:6.2f} {1:6.2f} {2:6.2f}\n'.format(dist,RA,dec))
-    ffout.write('Data         {0:s} {1:5.1f} {2:5.1f}\n'.format(datain))
+    ffout.write('Data         {0:s}\n'.format(datain))
     ffout.write('Convolve     {0:5.1f}\n'.format(dataconv))
     ffout.write('Binning      {0:5.1f}\n'.format(databin))
     ffout.write('Degrade      {0:5.1f}\n'.format(degrade))
@@ -1470,6 +1452,9 @@ if task=='Retrieval':
     ffout.write('Streams      {0:d}\n'.format(streams))
     ffout.write('Vres         {0:d}\n'.format(vres))
     if gray: ffout.write('Gray        {0:5.0f}\n'.format(tgray))
+    ffout.write('N_Steps         {0:d}\n'.format(nsteps))
+    ffout.write('Parallel        {}\n'.format(parallel))
+    ffout.write('Prior           {0:s}\n'.format(prior))
     ffout.write('Mass_Limits {0:5.2f} {1:5.2f}\n'.format(minmass,maxmass))
     ffout.write('Tables       {0:s} {1:s}\n'.format(hires,lores))
     ffout.write('Output       modelspectra    Short\n')
@@ -1480,11 +1465,7 @@ if task=='Retrieval':
     if b1>=0:
         ffout.write('Basic\n')
         for i in range(b1,b2):
-            if pnames[i]=='Rad' and 'RtoD2U' in basic:
-                finalsigma[i] = np.sqrt((float)(finalparams[i])) - np.sqrt((float)(finalparams[i]))
-                ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],np.sqrt((float)(finalparams[i])),np.sqrt((float)(finalparams[i])),finalsigma[i],np.sqrt(finalbounds[i,0]),np.sqrt(finalbounds[i,1])))
-            else:
-                ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))
+            ffout.write('{0:s}    {1:8.2f}    {2:8.2f}    {3:8.2f}    {4:8.2f}    {5:8.2f}\n'.format(pnames[i],(float)(finalparams[i]),(float)(finalparams[i]),finalsigma[i],finalbounds[i,0],finalbounds[i,1]))
 
     if g1>=0:
         ffout.write('Gases     {0:s}\n'.format(gases[0]))
@@ -1518,83 +1499,91 @@ if task=='Retrieval':
 if task=='Spectrum':
     finalparams = plparams
 
-radfinal = 11.2
+radfinal = RJup
 
 while True:
     pos = 0
     theta_planet = 0.
     if 'Rad' in basic:
         pos = basic.index('Rad')
-        theta_planet = finalparams[b1+pos]*6.371e8/dist/3.086e18
+        theta_planet = finalparams[b1+pos]*REarth/dist/parsec
         radfinal = finalparams[b1+pos]
-    elif 'RtoD' in basic:
-        pos = basic.index('RtoD')
-        theta_planet = 10**finalparams[b1+pos]
-        radfinal = 10**finalparams[b1+pos]*dist*3.086e18/6.371e8
-    elif 'RtoD2U' in basic:
-        pos = basic.index('RtoD2U')
-        theta_planet = np.sqrt(finalparams[b1+pos])*6.371e8/dist/3.086e18
-        radfinal = np.sqrt(finalparams[b1+pos])
     else:
-        theta_planet = 11.2*6.371e8/dist/3.086e18
+        theta_planet = RJup*REarth/dist/parsec
         # Default radius = Jupiter
+        
+    spectrum, derived = GetModel(finalparams)
     
-    spectrum = GetModel(finalparams)
-
     # Multiply by solid angle and collecting area
     fincident = np.zeros(len(spectrum))
     if mode<=1:
         for i in range(0,len(spectrum)):
             fincident[i] = spectrum[i] * theta_planet*theta_planet
-            #if i==0: print "newtdepth: ",i,specwave[i],fincident[i] # print output for debugging purposes
+            #if i==0: print("newtdepth: ",i,spectrum[i],fincident[i]) # print output for debugging purposes
             # erg/s/aperture/Hz
             # theta_planet is actually the radius/distance ratio
             # so its square converts flux at the surface to flux at the telescope
     if mode==2:
         fincident = spectrum
         
-    if 'deltaL' in end:
-        pos = end.index('deltaL')
-        deltaL = finalparams[e1+pos]
-    else:
-        deltaL = 0.0
-        
     # Adjust for wavelength calibration error
-    newibinlo = ibinlo + delibinlo*deltaL        
-    newibinhi = ibinhi + delibinhi*deltaL
+    deltaL = np.zeros(nband)
+    
+    for n in range(0,enum):
+        if end[n][0:6]=='deltaL':
+            if end[n]=='deltaL': pos = 0
+            else: pos = int(end[n][6:])
+            deltaL[pos] = finalparams[e1+n]
+            
+    newibinlo = np.zeros(len(ibinlo))
+    newibinhi = np.zeros(len(ibinhi))
+
+    di = 0
+    for i in range(0,nband):
+        for j in range(di,di+len(bandlo[i])):
+            newibinlo[j] = ibinlo[j] + deltaL[i] * delibinlo[j]
+            newibinhi[j] = ibinhi[j] + deltaL[i] * delibinhi[j]
+        di = di + len(bandlo[i])
+    
     binw = (newibinlo[1]-newibinlo[0])*(dataconv/databin)
     convmod = af.ConvSpec(fincident,binw)
     binmod = af.BinModel(convmod,newibinlo,newibinhi)
     resid = binflux-binmod
-    
     specout = binmid
-    xmin = min(specout)
-    xmax = max(specout)
-    xmin = xmin - 0.05*(xmax-xmin)
-    xmax = xmax + 0.05*(xmax-xmin)
     
-    yref = max(max(binmod),max(binflux))
-    ymin = -0.20 * yref
-    ymax =  1.05 * yref
-
-    # Plot the BINNED model/retrieved spectrum against the observations.
-    
-    fig4 = plt.figure(figsize=(10,7))
-    ax = fig4.add_subplot(111)
-    plt.axis((xmin,xmax,ymin,ymax))
-    
-    plt.xlabel('$\lambda$ ($\mu$m)',fontsize=14)
-    plt.ylabel('Flux (cgs)',fontsize=14)
-    plt.tick_params(axis='both',which='major',labelsize=12)
-    
-    ax.errorbar(specout,binflux,binerr,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
-    ax.plot(specout,binmod,'-',linewidth=1,label='Retrieved Spectrum',c='#8080ff')
-    ax.plot(specout,resid+ymin/2.,'-',linewidth=1,label='Residuals (offset)',c='r')
-    ax.plot([xmin,xmax],[0.,0.],'-',c='k')
-    ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
-    
-    plt.legend(fontsize=12)
-    
+    if plotting:
+        xmin = min(specout)
+        xmax = max(specout)
+        xmin = xmin - 0.05*(xmax-xmin)
+        xmax = xmax + 0.05*(xmax-xmin)
+        
+        yref = max(max(binmod),max(binflux))
+        ymin = -0.20 * yref
+        ymax =  1.05 * yref
+        #ymin = 0.97*yref  # I think this is for transits.
+        #ymax = 1.02*yref
+        
+        # Plot the BINNED model/retrieved spectrum against the observations.
+        
+        fig4 = plt.figure(figsize=(10,7))
+        ax = fig4.add_subplot(111)
+        plt.axis((xmin,xmax,ymin,ymax))
+        
+        plt.xlabel('$\lambda$ ($\mu$m)',fontsize=14)
+        plt.ylabel('Flux (cgs)',fontsize=14)
+        plt.tick_params(axis='both',which='major',labelsize=12)
+        
+        ax.errorbar(specout,binflux,binerr,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k',zorder=-1)
+        ax.plot(specout,binmod,'-',linewidth=1,label='Retrieved Spectrum',c='#8080ff',zorder=1)
+        ax.plot(specout,resid+ymin/2.,'-',linewidth=1,label='Residuals (offset)',c='r')
+        ax.plot([xmin,xmax],[0.,0.],'-',c='k')
+        ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
+        
+        plt.legend(fontsize=12)
+        
+        if manual:
+            plt.show()
+            
     if not manual:
         print('Computing final outputs.')
         break
@@ -1614,10 +1603,12 @@ while True:
         else:
             pos = pnames.index(psplit[0])
             finalparams[pos] = float(psplit[1])
-    
+
 if task=='Spectrum': outfile = '/' + name + '.Spectrum.'
-fig4name = 'plots' + outfile + 'binned.png'
-fig4.savefig(fig4name)
+
+if plotting:
+    fig4name = 'plots' + outfile + 'binned.png'
+    fig4.savefig(fig4name)
 
 #----------------------------------------------------------------------------------------#
 # Create an output file of the BINNED model/retrieved spectrum.
@@ -1625,20 +1616,21 @@ fig4.savefig(fig4name)
 foutnameb = 'modelspectra' + outfile + 'binned.dat'
 fout = open(foutnameb,'w')
 for i in range(0,len(specout)):
-    fout.write('{0:8.5f} {1:8.5f} {2:8.5e} 0.0 0.0 {2:8.5e}\n'.format(binlo[i],binhi[i],binmod[i]))
+    fout.write('{0:8.5f} {1:8.5f} {2:12.9e} 0.0 0.0 {2:12.9e}\n'.format(binlo[i],binhi[i],binmod[i]))
 fout.close()
 
 # Plot the FULL-RES model/retrieved spectrum against the observations.
+
+if plotting:
+    fig5name = 'plots' + outfile + 'fullres.png'
     
-fig5name = 'plots' + outfile + 'fullres.png'
-
-fig5 = plt.figure(figsize=(10,7))
-ax = fig5.add_subplot(111)
-plt.axis((xmin,xmax,ymin,ymax))
-
-plt.xlabel('$\lambda$ ($\mu$m)',fontsize=14)
-plt.ylabel('Flux (cgs)',fontsize=14)
-plt.tick_params(axis='both',which='major',labelsize=12)
+    fig5 = plt.figure(figsize=(10,7))
+    ax = fig5.add_subplot(111)
+    plt.axis((xmin,xmax,ymin,ymax))
+    
+    plt.xlabel('$\lambda$ ($\mu$m)',fontsize=14)
+    plt.ylabel('Flux (cgs)',fontsize=14)
+    plt.tick_params(axis='both',which='major',labelsize=12)
 
 # Compute the residuals by binning to the observations without downsampling for resolving power.
 wavemid = (wavelo+wavehi)/2.
@@ -1653,24 +1645,115 @@ for i in range(1,len(convflux)):
     convflux2 = np.r_[convflux2,convflux[i]]
     converr2 = np.r_[converr2,converr[i]]
 resid2 = convflux2-binmod
+    
+rechisq = np.sum(resid2**2/binerr**2)/(len(convflux2)-len(pvars))
+rmserr = np.sqrt(np.sum(resid**2)/len(convflux2))/np.mean(binerr)
+print('Reduced chi-square (no correction):\t\t{0:f}'.format(rechisq))
+print('RMS Error (sigma, no correction):\t\t{0:f}'.format(rmserr))
 
-ax.errorbar(wavemid,convflux2,converr2,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k')
-ax.plot(modwave,fincident,'-',linewidth=1,label='Retrieved Spectrum',c='#8080ff')
-ax.plot(wavemid,resid2+ymin/2.,'-',linewidth=1,label='Residuals (convovled and offset)',c='r')
-ax.plot([xmin,xmax],[0.,0.],'-',c='k')
-ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
+lnf = np.zeros(nband)
+for n in range(0,enum):
+    if end[n][0:4]=='logf':
+        if end[n]=='logf': pos = 0
+        else: pos = int(end[n][4:])
+        lnf[pos] = finalparams[e1+n]
+        print(finalparams[e1+n])
 
-plt.legend(fontsize=12)
-fig5.savefig(fig5name)
+# This plots the scaled error bars, but it's passed over to avoid confusion.
+'''
+di = 0
+for i in range(0,nband):
+    for j in range(di,di+len(bandlo[i])):
+        binerr[j] = np.sqrt(binerr[j]*binerr[j] + np.exp(lnf[i]))
+    di = di + len(bandlo[i])
+''' 
+rechisq = np.sum(resid2**2/binerr**2)/(len(convflux2)-len(pvars))
+rmserr = np.sqrt(np.sum(resid**2)/len(convflux2))/np.mean(binerr)
+print('Reduced chi-square (error bar correction):\t{0:f}'.format(rechisq))
+print('RMS Error (sigma, error bar correction):\t{0:f}'.format(rmserr))
+
+print(binerr)
+
+if plotting:
+    ax.errorbar(specout,binflux,binerr,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k',zorder=-1)
+    # I don't know what this was supposed to be, but it doesn't work.
+    #ax.errorbar(wavemid,convflux2,converr2,capsize=3,marker='o',linestyle='',linewidth=1,label='Observations',c='k',zorder=-1)
+    ax.plot(modwave,fincident,'-',linewidth=1,label='Retrieved Spectrum',c='#8080ff',zorder=1)
+    ax.plot(wavemid,resid2+ymin/2.,'-',linewidth=1,label='Residuals (convolved and offset)',c='r')
+    ax.plot([xmin,xmax],[0.,0.],'-',c='k')
+    ax.plot([xmin,xmax],[ymin/2.,ymin/2.],'--',c='k')
+    
+    plt.legend(fontsize=12)
+    fig5.savefig(fig5name)
 
 # Create an output file of the FULL-RES model/retrieved spectrum.
 
 foutnamef = 'modelspectra' + outfile + 'fullres.dat'
 fout = open(foutnamef,'w')
 for i in range(0,len(modwave)-1):
-    fout.write('{0:8.5f} {1:8.5f} {2:8.5e} 0.0 0.0 {2:8.5e}\n'.format(modwave[i],modwave[i+1],fincident[i]))
+    fout.write('{0:8.5f} {1:8.5f} {2:12.9e} 0.0 0.0 {2:12.9e}\n'.format(modwave[i],modwave[i+1],fincident[i]))
 
 # End of plot spectrum
+
+# Calling getContribution, which returns "taulayer" from the C++ side.
+contribution = planet.getContribution()
+cloudcont = planet.getCloudContribution()
+gascont = planet.getGasContribution()
+speciescont = planet.getSpeciesContribution()
+
+nlayers = np.shape(contribution)[-1] + 1
+logPs = (minP-6.0) + (maxP-minP)*np.arange(nlayers)/(nlayers-1)
+mean_logPs = (logPs[:-1]+logPs[1:])/2.
+
+def bin_contributions(contribution, wavelengths=modwave, datain=datain, logPs=mean_logPs):
+    # Continue if an observation file was named
+    if len(datain)>0:
+
+        # Output binned to the observations
+        fobs = open(datain,'r')
+
+        rlines = fobs.readlines()
+        rlen   = len(rlines)
+        rcalhi = np.zeros(rlen)
+        rcallo = np.zeros(rlen)
+        rflux  = np.zeros(rlen)
+        rnoise = np.zeros(rlen)
+        
+        for i in range(0,rlen):
+            rcalhi[i] = (float)(rlines[i].split()[0])
+            rcallo[i] = (float)(rlines[i].split()[1])
+            rflux[i]  = (float)(rlines[i].split()[2])
+            rnoise[i] = (float)(rlines[i].split()[3])
+
+        #rcalmid = 10000./((rcalhi + rcallo)/2.) # Is that the wavelength offset?
+        rcalmid = (rcalhi + rcallo)/2.
+
+        interpolate = interp1d(wavelengths, contribution, kind="linear", axis=-2)
+        binned_wavelengths = rcalmid
+        binned_contribution = interpolate(rcalmid)
+
+    else:
+        binned_wavelengths = wavelengths
+        binned_contribution = interpolate(rcalmid)
+
+    return pd.DataFrame(data=binned_contribution,
+                        index=binned_wavelengths,
+                        columns=mean_logPs)
+
+speciescont = {gas: bin_contributions(cont)
+               for gas, cont in zip(gases, speciescont)}
+
+otherconts = {"total": bin_contributions(contribution),
+              "cloud": bin_contributions(cloudcont),
+              "gas": bin_contributions(gascont)}
+
+contributions = speciescont.copy()
+contributions.update(otherconts)
+
+with open(name+"_contributions.p", "wb") as pickle_file:
+    pickle.dump(contributions,
+                pickle_file,
+                protocol=pickle.HIGHEST_PROTOCOL)
 
 if task=='Retrieval': sys.exit()
 
@@ -1715,8 +1798,7 @@ if noisemode >= 0:
     if (noisemode > 12 or noisemode == 9 or noisemode == 10) and (modwave[-1] > 4.99):
         print('Requested spectral mode does not match input wavelengths.')
         sys.exit()
-
-    print(starspec)
+        
     calwave,flux_density,fnoise = AddNoise.addNoise(noisemode,mode,opacwave,spectrum,noise_params,starspec)
         
     callo = np.zeros(len(calwave))
@@ -1739,7 +1821,7 @@ if noisemode >= 0:
     ftest = open(foutname,'w')
     
     for i in range(0,len(calwave)-1):
-        ftest.write('{0:8.5f} {1:8.5f} {2:8.5e} {3:8.5e} {3:8.5e} {4:8.5e}\n'.format(callo[i]-deltaL/1000.,calhi[i]-deltaL/1000.,obsdepth[i],noise[i],obs_flux[i]))
+        ftest.write('{0:8.5f} {1:8.5f} {2:12.9e} {3:12.9e} {3:12.9e} {4:12.9e}\n'.format(callo[i]-deltaL/1000.,calhi[i]-deltaL/1000.,obsdepth[i],noise[i],obs_flux[i]))
 
     # Plot the JWST mode against the observations.
         

@@ -1,5 +1,6 @@
 import numpy as np
 from astropy.convolution import convolve
+from scipy.interpolate import interp1d
 
 def FindBands(wavelo,wavehi,flux,err):
     wlobands = [[wavelo[0]]]
@@ -62,7 +63,7 @@ def BinBands(bandlo,bandhi,convflux,converr,databin):
         binflux,binerr,binlo,binhi = BinSpec(convflux[0],converr[0],bandlo[0],bandhi[0],databin)
         if len(convflux)>1:
             for i in range(1,len(convflux)):
-                bf,be,bh,bl = BinSpec(convflux[i],converr[i],bandlo[i],bandhi[i],databin)
+                bf,be,bl,bh = BinSpec(convflux[i],converr[i],bandlo[i],bandhi[i],databin)
                 binflux = np.r_[binflux,bf]
                 binerr = np.r_[binerr,be]
                 binlo = np.r_[binlo,bl]
@@ -78,7 +79,6 @@ def SliceModel(bandlo,bandhi,opacwave,minDL,maxDL):
         bend   = bandhi[i][-1] + maxDL
         js = np.where(opacwave>bstart)[0][0]-1
         je = np.where(opacwave>bend)[0][0]+1
-        if i>0 and js < bindex[i-1][1]: js = bindex[i-1][1]
         bindex.append([js,je])
         
     heads = []
@@ -90,10 +90,23 @@ def SliceModel(bandlo,bandhi,opacwave,minDL,maxDL):
     for i in range(0,len(hsort)):
         js = bindex[hsort[i]][0]
         je = bindex[hsort[i]][1]
-        slwave = np.r_[slwave,opacwave[js:je]]
-        modindex[i].append(modindex[i][0]+je-js)
+        start_index = modindex[i][0]+je-js
+        modindex[i].append(start_index)
         if i<len(hsort)-1:
-            modindex.append([modindex[i][0]+je-js])
+            js_next = bindex[hsort[i+1]][0]
+            if js_next < je:
+                new_start_index = start_index - (je-js_next)
+                modindex.append([new_start_index])
+            else:
+                modindex.append([start_index])
+        if i>0:
+            je_prev = bindex[hsort[i-1]][1]
+            if je_prev > js:
+                slwave = np.r_[slwave,opacwave[je_prev:je]]
+            else:
+                slwave = np.r_[slwave,opacwave[js:je]]
+        else:
+            slwave = np.r_[slwave,opacwave[js:je]]
             
     return bindex,modindex,slwave
 
@@ -111,21 +124,22 @@ def NormSpec(wave,flux,startsnorm,endsnorm):
     poly = np.poly1d(fit)
     
     return flux/poly(wave)
-
-def ConvSpec(flux,binw):
     
-    binw6 = binw * 6.0
-    sigmab = binw/2.35
-    kwid = (int)(binw6)
+def ConvSpec(flux,bin_width):
+    # The factor of 6 is a somewhat arbitrary choice to get
+    # a wide enough window for the Gaussian kernel
+    kernel_width = bin_width * 6.0
+    stdev = bin_width / 2.35
     
-    if kwid==0: return flux
+    kernel_frac, kernel_int = np.modf(kernel_width)
+    kernel_int = int(kernel_int)
+    if kernel_int == 0: return flux
     
-    kernel = np.zeros(kwid)
-    for i in range(0,kwid):
-        kernel[i] = np.exp(-0.5*(i-binw6/2.)*(i-binw6/2.)/sigmab/sigmab)
+    kernel = np.zeros(kernel_int)
+    for i in range(0,kernel_int):
+        kernel[i] = np.exp(-0.5*((i-kernel_width/2.)/stdev)**2)
     kernel = kernel/np.sum(kernel)
     convflux = np.convolve(flux,kernel,mode='same')
-    #convflux = convolve(flux,kernel,boundary='extend')
     
     return convflux
 
@@ -189,12 +203,11 @@ def BinModel(flux,binlo,binhi):
     fbinlo = (1.-np.modf(binlo)[0])-0.5
     fbinhi = np.modf(binhi)[0]-0.5
     binw = binhi-binlo
+    
     for i in range(0,len(binlo)):
-        
         binflux[i] = np.sum(flux[(int)(np.ceil(binlo[i])):(int)(np.ceil(binhi[i]))])
         binflux[i] = binflux[i] + fbinhi[i]*flux[(int)(np.floor(binhi[i]))]
         if (int)(np.ceil(binlo[i]))>=len(flux):
-            #binflux[i] = binflux[i] + fbinlo[i]*flux[(int)(np.floor(binlo[i]))]
             binflux[i] = binflux[i] + fbinlo[i]*flux[-1]
         else:
             binflux[i] = binflux[i] + fbinlo[i]*flux[(int)(np.ceil(binlo[i]))]
@@ -226,6 +239,7 @@ def GetBins(specwave,obslo,obshi):
 
 def GetScaOpac(gases,abunds):
     filler = 1. - np.sum(10**abunds)
+    
     gaslist = ["h2","h2only","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"]
     mmwlist = [2.28, 2.00, 4.00, 1.00, 18.0, 16.0, 28.0, 44.0, 17.0, 34.1, 24.1, 24.1, 53.0, 56.8, 63.9, 66.9, 27.0, 28.0, 34.0]
     scalist = [0.672e-27, 0.605e-27, 0.047e-27, 19.36e-27, 2.454e-27, 6.50e-27, 4.14e-27, 6.82e-27, 4.80e-27, 14.36e-27, 718.9e-27, 718.9e-27, 84.0e-27, 84.0e-27, 183.3e-27, 131.3e-27, 7.32e-27, 3.18e-27, 19.55e-27]
@@ -235,23 +249,23 @@ def GetScaOpac(gases,abunds):
     H-, CrH, TiO, and VO estimated based on theoretical models.
     FeH was not available; set equal to CrH.
     '''
-    # Default filler is h2.
+    
     if gases[0] in gaslist:
-        i = gaslist.index(gases[0])
-        mmw = mmwlist[i] * filler
-        scaopac = scalist[i] * filler
-    else:
-        mmw = mmwlist[0] * filler
-        scaopac = scalist[0] * filler
+        print("Filler gas not in gas list. Using H2 as a default.")
+        gases[0] = "h2"
+    mmw = [mmwlist[0] * filler]
+    scaopac = [scalist[0] * filler]
         
     for n in range(1,len(gases)):
         if gases[n] in gaslist:
             i = gaslist.index(gases[n])
-            mmw = mmw + mmwlist[i] * 10**(abunds[n-1])
-            scaopac = scaopac + scalist[i] * 10**(abunds[n-1])
+            mmw.append(mmwlist[i] * 10**(abunds[n-1]))
+            scaopac.append(scalist[i] * 10**(abunds[n-1]))
         n = n+1
-    return mmw,scaopac
-
+    mmw = np.array(mmw)
+    scaopac = np.array(scaopac)
+    return mmw, scaopac
+    
 def GetMollist(gases):
     mollist = np.zeros(len(gases))
     gaslist = ["h2","h2only","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"]
