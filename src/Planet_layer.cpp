@@ -2,7 +2,7 @@
 #include "specincld.h"
 #include "constants.h"
 #include "Atmosphere.h"
-#include "Planet.h"
+#include "Planet_layer.h"
 
 using namespace cons;
 
@@ -13,7 +13,6 @@ Planet::Planet(vector<int> switches, vector<double> waves, vector<double> wavesl
   cloudmod = switches[1];
   hazetype = switches[2];
   streams = switches[3];
-  tprofmode = switches[4];
   
   nspec = mollist.size(); // Number of molecular species, not number of spectral points.
   
@@ -26,7 +25,7 @@ Planet::Planet(vector<int> switches, vector<double> waves, vector<double> wavesl
   string dimfile = opacdir + "/gases/h2o." + hires + ".dat";
   ifstream dimin(dimfile.c_str());
   if(!dimin) cout << "Opacity Files Not Found" << std::endl;
-  dimin >> npress >> pmin >> pmax >> ntemp >> tmin >> tmax >> nwave >> wmin >> wmax >> res;
+  dimin >> npress >> pmin >> pmax >> ntemp >> tmin >> tmax >> nwave >> lmin >> lmax >> res;
   dimin.close();
   
   tmin = pow(10,tmin);
@@ -35,8 +34,10 @@ Planet::Planet(vector<int> switches, vector<double> waves, vector<double> wavesl
   pmax += 6.;
   pmin = pow(10,pmin);
   pmax = pow(10,pmax);
+  wmin = 10000./lmin;
+  wmax = 10000./lmax;
   
-  degrade = round(res*log(wavens[1]/wavens[0]));
+  degrade = round(res*log(wavens[0]/wavens[1]));
   ntable = ceil((double)nwave/degrade);
   
   if(nspec==0){
@@ -83,7 +84,15 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
   minP = plparams[7];
   maxP = plparams[8];
   sma = plparams[9]*1.496e13;
-  mp = grav/G*rp*rp;
+  
+  nlevel = tpprofile.size();
+  nlayer = nlevel-1;      // Layers between the T-P points.
+  tpprof = vector<double>(nlevel,0);
+  hprof = vector<double>(nlevel,0);
+  // Flipped around to work with Mark Marley's radiative transfer algorithm.
+  for(int i=0; i<nlevel; i++){
+    tpprof[i] = tpprofile[nlevel-1-i];
+  }
   
   haze = vector<double>(4,0);
   if(hazetype!=0){
@@ -99,33 +108,9 @@ void Planet::setParams(vector<double> plparams, vector<double> abund, vector<dou
       haze[3] = plparams[13];
     }
   }
-
-  if(tprofmode==0){  
-    nlevel = tpprofile.size();
-    nlayer = nlevel-1;      // Layers between the T-P points.
-    
-    tpprof = vector<double>(nlevel,0);
-    hprof = vector<double>(nlevel,0);
-    // Flipped around to work with Mark Marley's radiative transfer algorithm.
-    for(int i=0; i<nlevel; i++){
-      tpprof[i] = tpprofile[nlevel-1-i];
-    }
-    getProfLayer(tpprof);
-  }
-  else{
-    if(mode<=1) nlevel = 101;
-    if(mode==2) nlevel = 131;
-    nlayer = nlevel-1;      // Layers between the T-P points.
-    
-    tpprof = tpprofile;
-    tprof = vector<double>(nlevel);
-    taulist = vector<double>(nlevel);
-    for(int i=0; i<nlevel; i++){
-      taulist[i] = 0.001 * pow(10,10.*i/100.);
-    }
-    getProfParam(tpprof);
-  }
   
+  mp = grav/G*rp*rp;
+  getProfile(tpprof);
   // hmax changed to the 1 mubar level; can change this
   hmin = getH(pressure);
   hmax = hprof[0];
@@ -141,13 +126,14 @@ double Planet::getTeff(){
   double totflux=0.;
 
   for(int i=1; i<wavenslo.size(); i++){
-    totflux += tdepthlo[i]*(wavenslo[i]-wavenslo[i-1])/10000.;
+    totflux += tdepthlo[i]*(1./wavenslo[i]-1./wavenslo[i-1]);
   }
 
   // Compute Teff based on the Stefan-Boltzmann Law.
   // For a perfect blackbody, at least 90% of the flux falls within 0.6-30 microns between 350 and 3500 K.
   // And 99% of the flux falls within 0.6-30 microns between 800 and 2400 K.
   double teff = pow(totflux/5.67e-5,0.25);
+  if(teff<=0 || isinf(teff)) printf("Teff: %e %f\n",totflux,teff);
   return teff;
 }
 // end getTeff
@@ -166,7 +152,7 @@ vector<double> Planet::getSpectrum(){
 void Planet::readopac(vector<int> mollist, vector<double> wavens, string table, string opacdir){
   string specfile;
   
-  string gaslist[19] = {"h2he","h2","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"};
+  string gaslist[19] = {"h2","h2only","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"};
   
   if(table=="hires"){
     
@@ -194,7 +180,7 @@ void Planet::readopac(vector<int> mollist, vector<double> wavens, string table, 
 	  for(int j=0; j<npress; j++){
 	    for(int k=0; k<ntemp; k++){
 	      for(int l=0; l<nwave; l++){
-		double wn = wmin*exp(l/res);
+		double wn = 10000./(lmin*exp(l/res));
 		x = (int)(l/degrade);
 		double tmid = tmin*pow(10,k/20.3);
 		double bf = HminBoundFree(tmid, wn);
@@ -255,7 +241,7 @@ void Planet::readopac(vector<int> mollist, vector<double> wavens, string table, 
 	  for(int j=0; j<npress; j++){
 	    for(int k=0; k<ntemp; k++){
 	      for(int l=0; l<nwavelo; l++){
-		double wn = wmin*exp(l/reslo);
+		double wn = 10000./(lmin*exp(l/reslo));
 		double tmid = tmin*pow(10,k/20.3);
 		double bf = HminBoundFree(tmid, wn);
 		double ff = HminFreeFree(tmid, wn);
@@ -485,7 +471,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
   vector<double> cosbar(nlayershort,0);
 
   for(int i=0; i<wavens.size(); i++){
-    double wavelength = wavens[i]/10000.;
+    double wavelength = 1./wavens[i];
 
     double btop;
     double bottom;
@@ -524,6 +510,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
 	cm[j] = b0[j] + bdiff[j]*taulayer[i][j] - bdiff[j]*term; // = b1 - bdiff*term
 	cpm1[j] = b0[j] + bdiff[j]*term;
 	cmm1[j] = b0[j] - bdiff[j]*term;
+	//if(i==5810 || i==5814 || i==5825) printf("%d %d %e %e %e %e\n",i,j,cp[j],cm[j],cpm1[j],cmm1[j]);
       } // End of blackbody loop.
 
       // These are the attenuation coefficients exp(-taulayer) corrected for the quadrature.
@@ -577,6 +564,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
 	cm[j] = b0[j] + bdiff[j]*taulayerlo[i][j] - bdiff[j]*term; // = b1 - bdiff*term
 	cpm1[j] = b0[j] + bdiff[j]*term;
 	cmm1[j] = b0[j] - bdiff[j]*term;
+	//if(i==5810 || i==5814 || i==5825) printf("%d %d %e %e %e %e\n",i,j,cp[j],cm[j],cpm1[j],cmm1[j]);
       } // End of blackbody loop.
       
       // These are the attenuation coefficients exp(-taulayer) corrected for the quadrature.
@@ -621,6 +609,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
       bf[ii] = (e1[nn]-e3[nn])*(1.+gama[nn+1]);
       cf[ii] = (e1[nn]+e3[nn])*(gama[nn+1]-1.);
       df[ii] = e3[nn]*(cpm1[nn+1]-cp[nn]) + e1[nn]*(cm[nn]-cmm1[nn+1]);
+      //if(i==5810 || i==5814 || i==5825) printf("%d %d %d %e %e %e %e\n",i,ii,nn,af[ii],bf[ii],cf[ii],df[ii]);
       nn++;
     }
     
@@ -633,6 +622,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
       bf[ii] = (e2[nn]+e4[nn])*(gama[nn+1]-1.);
       cf[ii] = 2.*(1.-gama[nn+1]*gama[nn+1]);
       df[ii] = (gama[nn+1]-1.)*(cpm1[nn+1]-cp[nn]) + (1.-gama[nn+1])*(cm[nn]-cmm1[nn+1]);
+      //if(i==5810 || i==5814 || i==5825) printf("%d %d %d %e %e %e %e\n",i,ii,nn,af[ii],bf[ii],cf[ii],df[ii]);
       nn++;
     }
 
@@ -674,6 +664,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
 	    double alphax = sqrt( (1.-w0[i][j])/(1.-w0[i][j]*cosbar[j]) );
 	    gg[j] = 2.*pi*w0[i][j]*xk1[j]*(1.+cosbar[j]*alphax)/(1.+alphax);
 	    hh[j] = 2.*pi*w0[i][j]*xk2[j]*(1.-cosbar[j]*alphax)/(1.+alphax);
+	    //if(ng==7 && (i==5810 || i==5814 || i==5825)) printf("%d %d %e %e %e %e %e %e %e\n",i,j,gg[j],hh[j],w0[i][j],xk1[j],xk1[j],cosbar[j],alphax);
 	    xj[j] = 2.*pi*w0[i][j]*xk1[j]*(1.-cosbar[j]*alphax)/(1.+alphax);
 	    xk[j] = 2.*pi*w0[i][j]*xk2[j]*(1.+cosbar[j]*alphax)/(1.+alphax);
 	    alpha1[j] = 2.*pi*(b0[j] + bdiff[j]*(ubari*w0[i][j]*cosbar[j]/(1.-w0[i][j]*cosbar[j])));
@@ -696,6 +687,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
 	// fpt is the outward flux, computed by adding up the quadrature terms.
 	// fmt is the inward flux.
 	fpt[nlevelshort-1] = 2.*pi*(bsurf + bdiff[nlayershort-1]*ugauss); // which is the same as bottom.
+	//if(i==5810 || i==5814 || i==5825) printf("%d %d %e %e %e %e\n",i,ng,bsurf,bdiff[nlayershort-1],ugauss,fpt[nlevelshort-1]);
 	//fmt[0] = 2.*pi*(1.-exp(-tautop/ugauss))*blackbodyL(tprof[0],wavelength);
 	
 	for(int j=0; j<nlayershort; j++){
@@ -713,6 +705,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
 	}
 	
 	for(int j=nlayershort-1; j>=0; j--){
+	  //if(ng==7 && (i==5810 || i==5814 || i==5825)) printf("%d %d %e %e %e %e %e %e %e\n",i,j,gg[j],hh[j],fpt[j+1]);
 	  fpt[j] = fpt[j+1]*em2[j];
 	  fpt[j] += gg[j]/(lamda[j]*ugauss-1.)*(epp[j]*em2[j]-1.);
 	  fpt[j] += hh[j]/(lamda[j]*ugauss+1.)*(1.-em3[j]);
@@ -721,6 +714,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
 	}
 	
 	totalflux[i] += gaussWeights[ng]*fpt[0];
+	//if(i>5805 && i<5830) printf("%d %d %e %e\n",i,ng,fpt[0],totalflux[i]);
       } // end of ng for loop
     } // end of if(table=="hires")
 
@@ -733,6 +727,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
 	    double alphax = sqrt( (1.-w0lo[i][j])/(1.-w0lo[i][j]*cosbar[j]) );
 	    gg[j] = 2.*pi*w0lo[i][j]*xk1[j]*(1.+cosbar[j]*alphax)/(1.+alphax);
 	    hh[j] = 2.*pi*w0lo[i][j]*xk2[j]*(1.-cosbar[j]*alphax)/(1.+alphax);
+	    //if(ng==7 && (i==5810 || i==5814 || i==5825)) printf("%d %d %e %e %e %e %e %e %e\n",i,j,gg[j],hh[j],w0lo[i][j],xk1[j],xk1[j],cosbar[j],alphax);
 	    xj[j] = 2.*pi*w0lo[i][j]*xk1[j]*(1.-cosbar[j]*alphax)/(1.+alphax);
 	    xk[j] = 2.*pi*w0lo[i][j]*xk2[j]*(1.+cosbar[j]*alphax)/(1.+alphax);
 	    alpha1[j] = 2.*pi*(b0[j] + bdiff[j]*(ubari*w0lo[i][j]*cosbar[j]/(1.-w0lo[i][j]*cosbar[j])));
@@ -755,6 +750,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
 	// fpt is the outward flux, computed by adding up the quadrature terms.
 	// fmt is the inward flux.
 	fpt[nlevelshort-1] = 2.*pi*(bsurf + bdiff[nlayershort-1]*ugauss); // which is the same as bottom.
+	//if(i==5810 || i==5814 || i==5825) printf("%d %d %e %e %e %e\n",i,ng,bsurf,bdiff[nlayershort-1],ugauss,fpt[nlevelshort-1]);
 	//fmt[0] = 2.*pi*(1.-exp(-tautop/ugauss))*blackbodyL(tprof[0],wavelength);
 	
 	for(int j=0; j<nlayershort; j++){
@@ -772,6 +768,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
 	}
 	
 	for(int j=nlayershort-1; j>=0; j--){
+	  //if(ng==7 && (i==5810 || i==5814 || i==5825)) printf("%d %d %e %e %e %e %e %e %e\n",i,j,gg[j],hh[j],fpt[j+1]);
 	  fpt[j] = fpt[j+1]*em2[j];
 	  fpt[j] += gg[j]/(lamda[j]*ugauss-1.)*(epp[j]*em2[j]-1.);
 	  fpt[j] += hh[j]/(lamda[j]*ugauss+1.)*(1.-em3[j]);
@@ -780,6 +777,7 @@ vector<double> Planet::getFlux(vector<double> wavens, string table)
 	}
 	
 	totalflux[i] += gaussWeights[ng]*fpt[0];
+	//if(i>5805 && i<5830) printf("%d %d %e %e\n",i,ng,fpt[0],totalflux[i]);
       } // end of ng for loop
     } // end of if(table=="lores")
   } // end of i for loop (wavens)
@@ -837,7 +835,7 @@ vector<double> Planet::getFluxes(vector<double> wavens, double cosmu, double del
     double sinmu = sqrt(1.-cosmu*cosmu);
     
     for(int i=0; i<wavens.size(); i++){
-      double wavelength = wavens[i]/1.e4;
+      double wavelength = 1./wavens[i];
       
       for(int j=nlayer-1; j>=0; j--){
 	// Entire layer below cloud deck
@@ -885,7 +883,7 @@ vector<double> Planet::getFluxes(vector<double> wavens, double cosmu, double del
     double sinmu = sqrt(1.-cosmu*cosmu);
     
     for(int i=0; i<wavenslo.size(); i++){
-      double wavelength = wavenslo[i]/1.e4;
+      double wavelength = 1./wavenslo[i];
       
       for(int j=nlayer-1; j>=0; j--){
 	// Entire layer below cloud deck
@@ -993,8 +991,8 @@ vector<double> Planet::transFlux(double rs, vector<double> wavens, string table)
 }
 // end transFlux
 
-// Computes a 71-layer T-P profile from a layer-by-layer input profile
-void Planet::getProfLayer(vector<double> tpprofile)
+// Computes a 71-layer T-P profile from the input profile
+void Planet::getProfile(vector<double> tpprofile)
 {
   tprof = tpprofile;
   prprof = vector<double>(nlevel);
@@ -1018,63 +1016,7 @@ void Planet::getProfLayer(vector<double> tpprofile)
     }
   }
 }
-// end getProfLayer
-
-// Computes a 101-layer T-P profile from a parametric input profile
-void Planet::getProfParam(vector<double> tpprofile)
-{
-  double Tint = tpprofile[0];
-  double kIR = tpprofile[1];
-  double gamma1 = tpprofile[2];
-  double gamma2 = tpprofile[3];
-  double alpha = tpprofile[4];
-
-  // Set irradiation term
-  double Tirr = 0.; // Free-floating planet or brown dwarf
-  // Should technically be 50 K for widely-separated planets, but the
-  // difference is ~10 ppm.
-  if(mode==1){
-    Tirr = pow(rs/2/sma,0.5)*tstar;
-  }
-  
-  prprof = vector<double>(nlevel);
-  hprof = vector<double>(nlevel);
-  rho = vector<double>(nlevel);
-
-  hprof[0] = 0.;
-  prprof[0] = grav*(taulist[0]/kIR);
-  
-  double E21, E22, xi1, xi2, deltaH;
-  for(int i=0; i<nlevel; i++){
-    // Compute T(tau)
-    E21 = cons::expint(2,gamma1*taulist[i]); // these are a function of tau
-    E22 = cons::expint(2,gamma2*taulist[i]);
-    xi1 = 2./3. + 2./(3.*gamma1) * (1.+(gamma1*taulist[i]/2. - 1.)*exp(-gamma1*taulist[i])) + 2.*gamma1/3.*(1.-taulist[i]*taulist[i]/2.)*E21;
-    xi2 = 2./3. + 2./(3.*gamma2) * (1.+(gamma2*taulist[i]/2. - 1.)*exp(-gamma2*taulist[i])) + 2.*gamma2/3.*(1.-taulist[i]*taulist[i]/2.)*E22;
-    tprof[i] = (3.*pow(Tint,4)/4.*(2./3.+taulist[i])) + (3.*pow(Tirr,4)/4.*(1-alpha)*xi1) + (3.*pow(Tirr,4)/4.*alpha*xi2);
-    tprof[i] = pow(tprof[i],0.25);
-    // Gray atmosphere T-P profile for testing.
-    //tprof[i] = pow(0.75*pow(Tint,4)*(taulist[i]+0.67),0.25);
-    
-    if(tprof[i]<75.) tprof[i] = 75.;
-    if(tprof[i]>4000.) tprof[i] = 4000.;
-    rho[i] = prprof[i]/tprof[i] * mu/k;
-    deltaH = 0.;
-    
-    if(i<nlevel-1){
-      deltaH = (taulist[i+1] - taulist[i])/(kIR*rho[i]);
-      hprof[i+1] = hprof[i] + deltaH;
-      prprof[i+1] = prprof[i] + (grav*pow(rp,2)/pow(rp+hprof[i+1],2))*rho[i]*deltaH;
-    }
-  }
-  
-  for(int i=0; i<nlevel-1; i++){
-    hprof[i] = hprof[nlevel-1] - hprof[i];
-  }
-  
-  hprof.back() = 0.;
-}
-// end getProfParam
+// end getProfile
 
 // Computes the optical depth table from the opacity table.
 // Length of tauprof is 1 less than tprof
@@ -1092,7 +1034,7 @@ void Planet::getTauProf(vector<double> wavens, string table)
     double backwardfrac = 0.;
     
     for(int i=0; i<wavens.size(); i++){
-      double wavel = wavens[i];
+      double wavel = 10000./wavens[i];
       
       for(int j=0; j<nlayer; j++){
 	double dl = (hprof[j]-hprof[j+1]);
@@ -1166,6 +1108,9 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	  tauprof[i][j] += hazedepth * dlc;
 	}
 	taulayer[i][j] += hazedepth * dlc;
+	if(isnan(tauprof[i][j]) || isinf(tauprof[i][j]) || tauprof[i][j]<0.){
+	  printf("%d %d %e %e %e %e\n",i,j,tauproflo[i][j],taulayerlo[i][j],hazedepth,dlc);
+	}
         
 	if(doMie==true){
 	  // w0 is the single scattering albedo: the ratio of the scattering optical depth to the total optical depth
@@ -1195,7 +1140,7 @@ void Planet::getTauProf(vector<double> wavens, string table)
     double backwardfrac = 0.;
     
     for(int i=0; i<wavenslo.size(); i++){
-      double wavel = wavenslo[i];
+      double wavel = 10000./wavenslo[i];
       
       for(int j=0; j<nlayer; j++){
 	double dl = (hprof[j]-hprof[j+1]);
@@ -1268,6 +1213,9 @@ void Planet::getTauProf(vector<double> wavens, string table)
 	  tauproflo[i][j] += hazedepth * dlc;
 	}
 	taulayerlo[i][j] += hazedepth * dlc;
+	if(isnan(tauproflo[i][j]) || isinf(tauproflo[i][j]) || tauproflo[i][j]<0.){
+	  printf("%d %d %e %e %e %e\n",i,j,tauproflo[i][j],taulayerlo[i][j],hazedepth,dlc);
+	}
 
 	if(doMie==true){
 	  // w0 is the single scattering albedo: the ratio of the scattering optical depth to the total optical depth
@@ -1308,7 +1256,7 @@ void Planet::transTauProf(vector<double> wavens, string table)
     }
   
     for(int ii=0; ii<wavens.size(); ii++){
-      double wavel = wavens[ii];
+      double wavel = 10000./wavens[ii];
       for(int i=1; i<nlayer; i++){
 	for(int j=0; j<i; j++){
 	  double dl = (hprof[j]-hprof[j+1]);
@@ -1385,7 +1333,7 @@ void Planet::transTauProf(vector<double> wavens, string table)
     }
   
     for(int ii=0; ii<wavenslo.size(); ii++){
-      double wavel = wavenslo[ii];
+      double wavel = 10000./wavenslo[ii];
       for(int i=1; i<nlayer; i++){
 	for(int j=0; j<i; j++){
 	  double dl = (hprof[j]-hprof[j+1]);
@@ -1464,6 +1412,8 @@ void Planet::getOpacProf(double rxsec, vector<double> wavelist, vector<double> a
   
   if(table=="hires"){
     opacprof = vector<vector<double> >(wavens.size(),vector<double>(nlayer,0));
+    wval = log(10000./wavelist[0]/lmin)*res/degrade;
+    wstart = (int)wval;
   }
   if(table=="lores") opacproflo = vector<vector<double> >(wavenslo.size(),vector<double>(nlayer,0));
   int nmol = nspec;
@@ -1485,12 +1435,6 @@ void Planet::getOpacProf(double rxsec, vector<double> wavelist, vector<double> a
   
   // loop over wavelengths
   for(int m=0; m<wavelist.size(); m++){
-    int jw = m;
-    if(table=="hires"){
-      wval = log(wavelist[m]/wmin)*res/degrade + 0.000001;
-      jw = (int)wval;
-    }
-    
     // loop over T-P profile
     for(int j=0; j<nlayer; j++){
       double tl = log10(0.5*(tprof[j]+tprof[j+1]));
@@ -1524,18 +1468,18 @@ void Planet::getOpacProf(double rxsec, vector<double> wavelist, vector<double> a
       xsec[3] = 0.;
       if(table=="hires"){
 	for(int iii=0; iii<nmol; iii++){
-	  xsec[0] += mastertable[jp][jt][jw][iii]*abund[iii];
-	  xsec[1] += mastertable[jp][jt+1][jw][iii]*abund[iii];
-	  xsec[2] += mastertable[jp+1][jt][jw][iii]*abund[iii];
-	  xsec[3] += mastertable[jp+1][jt+1][jw][iii]*abund[iii];
+	  xsec[0] += mastertable[jp][jt][m+wstart][iii]*abund[iii];
+	  xsec[1] += mastertable[jp][jt+1][m+wstart][iii]*abund[iii];
+	  xsec[2] += mastertable[jp+1][jt][m+wstart][iii]*abund[iii];
+	  xsec[3] += mastertable[jp+1][jt+1][m+wstart][iii]*abund[iii];
 	}
       }
       if(table=="lores"){
 	for(int iii=0; iii<nmol; iii++){
-	  xsec[0] += lotable[jp][jt][jw][iii]*abund[iii];
-	  xsec[1] += lotable[jp][jt+1][jw][iii]*abund[iii];
-	  xsec[2] += lotable[jp+1][jt][jw][iii]*abund[iii];
-	  xsec[3] += lotable[jp+1][jt+1][jw][iii]*abund[iii];
+	  xsec[0] += lotable[jp][jt][m+wstart][iii]*abund[iii];
+	  xsec[1] += lotable[jp][jt+1][m+wstart][iii]*abund[iii];
+	  xsec[2] += lotable[jp+1][jt][m+wstart][iii]*abund[iii];
+	  xsec[3] += lotable[jp+1][jt+1][m+wstart][iii]*abund[iii];
 	}
       }
       
@@ -1560,7 +1504,7 @@ void Planet::getSca(double rxsec, vector<double> wavelist, string table)
   
   for(int m=0; m<wavelist.size(); m++){
     for(int j=0; j<nlayer; j++){
-      double nu = c*10000./wavelist[m];
+      double nu = c*wavelist[m];
       
       if(table=="hires") scatable[m][j] = rxsec * pow(nu/5.0872638e14,4.0);
       if(table=="lores") scatablelo[m][j] = rxsec * pow(nu/5.0872638e14,4.0);
@@ -1571,8 +1515,8 @@ void Planet::getSca(double rxsec, vector<double> wavelist, string table)
 
 double Planet::HminBoundFree(double t, double waven){
   double lambda0 = 1.6419;
-  if(waven < lambda0){
-    double lambda = waven;
+  if(waven > 1.e4/lambda0){
+    double lambda = 1.e4/waven;
     double x = sqrt(1./lambda - 1./lambda0);
     double f = 0.;
     f *= x;
@@ -1627,7 +1571,7 @@ double Planet::HminFreeFree(double t, double waven){
 
   // al = wavelength in microns
   
-  double al = waven;
+  double al = 1.e4/waven;
   double sff_hm=0.;
   
   if(t < 800 || al > 20){

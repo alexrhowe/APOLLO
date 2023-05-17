@@ -28,7 +28,7 @@ for i in range(0,nsteps):
             #print(len(lines[i*nwalkers+j]))
             samples[i,j,k] = lines[2*i*nwalkers+2*j].split()[k]
 
-for n in range(0,ndim-1):
+for n in range(0,ndim):
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
     plt.xlabel('Steps',fontsize=14)

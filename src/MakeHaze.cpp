@@ -25,13 +25,13 @@ int main(int argc, char *argv[]){
   vector<double> abund(7,0);
   double wave, rad, realn, imagn, xsec, axsec, sxsec, asfac;
   
-  std::string opacdir = "../Opacities";
-  std::string hazename = "corundum";
-  std::string tabletype = "lores";
+  std::string opacdir = "../opacities";
+  std::string hazename = "enstatite";
+  std::string tabletype = "wide";
 
   double wmin = 0.6;
   double wmax = 30.0;
-  double resolv = 200.;
+  double resolv = 10000.;
   int nwave = (int)(ceil(log(wmax/wmin)*resolv))+1;
   
   if(argc>1){

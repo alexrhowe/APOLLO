@@ -51,7 +51,9 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
     k=0
 
     uwave = mod_wave
+    # mod_wave = 10000./mod_wave
 
+    # planet_flux = mod_flux/np.pi * omega_planet
     for i in range(0,len(mod_flux)):
         planet_flux[i] = (float)(mod_flux[i])/pi*omega_planet  # multiply by solid angle
 
@@ -126,6 +128,7 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
     flux_star = np.convolve(star_flux,kernel,mode='same')
 
     if mode==-1: fil.calwave = mod_wave
+    #fil.calwave = 10000./fil.calwave
 
     if mode!=-1:
         f = interpolate.interp1d(mod_wave,flux_star,kind='linear')
@@ -201,8 +204,8 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
 
     background = 1.0e-17*background
     zodi = 1.0e-17*zodi
-    background = background/(h*c*(fil.calwave/1.e4))
-    zodi = zodi/(h*c*(fil.calwave/1.e4))
+    background = background/(h*c*(1.0e4/fil.calwave))
+    zodi = zodi/(h*c/(fil.calwave/1.e4))
     # end background.pro
 
     if(fil.slit > 0.): omeg_back = (fil.slit*fil.scale/206265.)*(1.22*fil.calwave/6.0e6)
@@ -213,7 +216,7 @@ def addNoise(mode,obstype,mod_wave,mod_flux,noise_params,starspec = '',fname = '
     background = background * omeg_back * 2.5e5
     zodi = zodi * omeg_back * 2.5e5
 
-    freq1 = fil.calwave/1.e4                      # cm^-1
+    freq1 = 1.e4/fil.calwave                      # cm^-1
     bandwidth = np.fabs(np.gradient(freq1)) * c   # s^-1
 
     if(np.max(fil.calwave) > 15.0):
