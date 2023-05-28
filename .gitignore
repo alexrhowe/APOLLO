@@ -11,3 +11,6 @@ src/.nfs0000000254238201000001a8
 .spyproject/config/encoding.ini
 .spyproject/config/vcs.ini
 .spyproject/config/workspace.ini
+.spyproject/config/backups/codestyle.ini.bak
+.spyproject/config/backups/encoding.ini.bak
+.spyproject/config/backups/vcs.ini.bak

@@ -1460,6 +1460,7 @@ def run_nested_sampler(ndim, lnprior, lnlike, pool, fchain, ibinlo, ibinhi, binf
                                                        logl_args=(ibinlo, ibinhi, binflux, binerr),
                                                        nlive=1000,
                                                        sample="rwalk",
+                                                       walks=int(4*ndim),
                                                        update_interval=3.0,
                                                        #blob=True,
                                                        pool=pool)
