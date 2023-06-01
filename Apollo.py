@@ -698,7 +698,7 @@ def GetModel(x):
             asum = asum + 10**x[i]
         abund[0] = 1. - asum
         mmw,rxsec = af.GetScaOpac(gases, abund[1:])
-        
+
     params1 = np.zeros(ilen)
 
     # Dummy variables in case they cannot be calculated.
@@ -706,7 +706,7 @@ def GetModel(x):
     ctoo = 0.
     fetoh = 0.
     teff = 0.
-    
+
     # Radius handling
     if 'Rad' in basic:
         pos = basic.index('Rad')
