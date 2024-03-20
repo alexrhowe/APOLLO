@@ -57,6 +57,7 @@ class Planet
   double pmax;
   double tmin;
   double tmax;
+  double deltalogt;
   double lmin;
   double lmax;
   double wmin;
@@ -104,15 +105,17 @@ class Planet
   Atmosphere* atmoslores;
   
   void setParams(vector<double> plparams, vector<double> abund, vector<double>rxsecs, vector<double> tpprofile);
+  //void setParams(vector<double> plparams, vector<vector<double> > abund, vector<double>rxsecs, vector<double> tpprofile);
   double getTeff();
   vector<double> getSpectrum();
   vector<double> getClearSpectrum();
   void readopac(vector<int> mollist, vector<double> wavens, string table, string opacdir);
   void setWave(int npoints, vector<double> rxsec, vector<double> wavelist, vector<double> abund);
-  vector<vector<double>> getContribution();
-  vector<vector<double>> getCloudContribution();
-  vector<vector<double>> getGasContribution();
-  vector<vector<vector<double>>> getSpeciesContribution();
+  //void setWave(int npoints, vector<double> rxsec, vector<double> wavelist, vector<vector<double> > abund);
+  vector<vector<double> > getContribution();
+  vector<vector<double> > getCloudContribution();
+  vector<vector<double> > getGasContribution();
+  vector<vector<vector<double> > > getSpeciesContribution();
   double getP(double height);
   double getT(double height);
   double getH(double pr);
@@ -125,6 +128,7 @@ class Planet
   void getTauProf(vector<double> wavens, string table);
   void transTauProf(vector<double> wavens, string table);
   void getOpacProf(vector<double> rxsecs, vector<double> wavelist, vector<double> abund, string table);
+  void getOpacProf(vector<double> rxsecs, vector<double> wavelist, vector<vector<double> > abund, string table);
   void getSca(vector<double> rxsecs, vector<double> wavelist, string table);
   double HminBoundFree(double t, double waven);
   double HminFreeFree(double t, double waven);

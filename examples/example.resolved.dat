@@ -1,23 +1,25 @@
 Object		example
 Mode		Resolved
-Parallel	False
+Parallel	True
 Data            examples/example.obs.dat
 Convolve	1
 Binning		1
 Degrade		1
 Prior		Uniform
-N_Steps		2
+N_Steps		30000
 Star		4600.	0.74	100.0
 Location	5.84	224.37	-21.42
 Minimum_Mass	0.5
 Tables		nir	lores
 Pressure	-3.0	2.5
-Streams		2
+Streams		1
+Output		samples
+Opacities	../Opacities
 Parameter   Initial   Mu    Sigma    Min     Max
 Basic
 RtoD2U	     -19.     -19.    2.0   -21.0   -16.0
 Log(g)         4.76     4.8    1.0    2.0     6.0
-Gases h2
+Gases
 h2o           -3.45    -3.0    1.0  -12.0    -0.0
 ch4           -3.40    -4.0    1.0  -12.0    -0.0
 co            -7.53    -8.0    1.0  -12.0    -0.0

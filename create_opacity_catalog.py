@@ -1,7 +1,9 @@
 from ast import literal_eval as guess_type
-from collections import namedtuple
+# from collections import namedtuple
+from dataclasses import dataclass, field, InitVar
 from glob import glob
 import pandas as pd
+from typing import NamedTuple
 from warnings import warn
 
 
@@ -21,6 +23,22 @@ OpacityEntry = namedtuple(
     'effective_resolution '    +\
     'path_to_file'
     )
+
+@dataclass
+class OpacityCatalog:
+    name:                        str
+    species:                     list[str]
+    number_of_pressure_layers:   int
+    minimum_log_pressure:        float
+    maximum_log_pressure:        float
+    number_of_temperatures:      int
+    minimum_log_temperature:     float
+    maximum_log_temperature:     float
+    number_of_spectral_elements: int
+    minimum_wavelength:          float
+    maximum_wavelength:          float
+    effective_resolution:        float
+    paths_to_files: 
 
 
 def create_gas_opacity_catalog(gas_opacity_directory: str) -> pd.DataFrame:

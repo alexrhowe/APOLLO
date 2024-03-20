@@ -1,0 +1,47 @@
+Mode            Resolved
+Object          2M2236.Piette.G395H.cloud-free.2024-02-27.continuation
+Parallel        True
+Data            /rhome/arthura/APOLLO/data/2M2236b_NIRSpec_G395H_R500_APOLLO.dat
+Convolve        1
+Binning         1
+Degrade         1
+Sampler         dynesty
+Checkpoint	/rhome/arthura/bigdata/samples/2M2236.Piette.G395H.cloud-free.2024-02-27.dynesty_checkpoint.dat
+N_Steps         500000
+Star            6516.  1.86   600.000
+Location        63.0 184.46 -55.97
+Mass_Limits     0.5    1.e15
+Tables          jwst50k    lores
+Pressure        -4.0   2.5
+Streams         2
+Prior           Uniform
+Output          /rhome/arthura/bigdata/samples   Short
+Opacities       /rhome/arthura/bigdata/APOLLO_data/Opacities_0v10
+Parameter    MLE    Mu    Sigma    Min    Max    Lower    Higher
+Basic
+Rad       11.44      19.41        0.02        5.00       50.00        0.02        0.02
+Log(g)     4.50       4.19        0.40        3.00        7.00        0.00        0.00
+Gases     h2only
+h2o       -3.18       -3.60        0.03      -12.00       -1.00        0.02        0.03
+co        -3.83       -3.52        0.04      -12.00       -1.00        0.04        0.04
+co2	  -6.96	      -6.96	   0.01	     -12.00	  -1.00	       0.01	   0.01
+ch4	  -3.54	      -3.54	   0.01	     -12.00	  -1.00	       0.01	   0.01	   
+Lupu_alk  -5.46       -6.25        0.03      -12.00       -1.00        0.02        0.03
+h2s	  -4.56	      -4.56	   0.01	     -12.00	  -1.00	       0.01	   0.01
+nh3	  -5.76	      -5.76	   0.01	     -12.00	  -1.00	       0.01	   0.01
+Atm       piette
+T_m4     433.095329     1967.14        5.42      100.00     4000.00        7.41        5.42
+T_m3     481.868528     3627.54       98.41      100.00     4000.00      148.57       98.41
+T_m2     557.843874     3792.56       34.27      100.00     4000.00       25.99       34.27
+T_m1     705.230919     1967.14        5.42      100.00     4000.00        7.41        5.42
+T_0     1127.597652     3627.54       98.41      100.00     4000.00      148.57       98.41
+T_0p5   1412.647250     3792.56       34.27      100.00     4000.00       25.99       34.27
+T_1     1781.538772     3792.56       34.27      100.00     4000.00       25.99       34.27
+T_1p5   2382.715910     3792.56       34.27      100.00     4000.00       25.99       34.27
+T_2     3440.880515     3792.56       34.27      100.00     4000.00       25.99       34.27
+T_2p5   4000.000000     3792.56       34.27      100.00     4000.00       25.99       34.27
+End
+deltaL        0.00        4.15        0.01       -5.00        5.00        0.09        0.00
+scaleG395_ch1 1.00        1.00        0.01        0.75        1.25        0.01        0.01
+scaleG395_ch2 1.00        1.00        0.01        0.75        1.25        0.01        0.01
+logf        -10.00      -10.00        0.10     -100.00        5.00        0.00        0.00
