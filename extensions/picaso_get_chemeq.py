@@ -3,6 +3,11 @@ from functools import partial
 from inspect import signature
 import numpy as np
 import os
+
+FILENAME_DB = os.path.join(
+    os.environ.get("picaso_refdata"), "opacities", "opacities.db"
+)
+print(FILENAME_DB)
 from pathlib import Path
 from picaso import justdoit as jdi
 from typing import Callable
@@ -12,6 +17,7 @@ from xarray import DataArray
 FILENAME_DB = os.path.join(
     os.environ.get("picaso_refdata"), "opacities", "opacities.db"
 )
+print(FILENAME_DB)
 OPANNECTION = jdi.opannection(filename_db=FILENAME_DB)
 SONORA_PROFILE_DB = "/Volumes/ResearchStorage/profile"
 SAVE_DIRECTORY = Path.cwd() / "extensions"

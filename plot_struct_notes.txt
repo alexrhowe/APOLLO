@@ -1,0 +1,78 @@
+From the dynesty results file:
+    - samples
+    - log likelihoods
+    - importance weights
+
+Directory information:
+    - directory(ies) (used to separate different runs)
+    - file template string used to look for files
+    - file template string used to make the output files
+    - file holding the data spectrum
+
+All the dictionaries I make in parallel:
+    - results
+    - derived
+    - samples (results + derived)
+    - importances
+    - iterations
+    - string formats
+
+What parse_samples returns (and puts into samples_dict):
+    return [
+        {
+            "basic": [
+                bnames,
+                bnames2,
+                bsamples,
+                MLE_bsample,
+                brange,
+                bmedian,
+                blow - bmedian,
+                bhigh - bmedian,
+            ],
+            "clouds": [
+                cnames,
+                cnames2,
+                csamples,
+                MLE_csample,
+                crange,
+                cmedian,
+                clow - cmedian,
+                chigh - cmedian,
+            ],
+            "gases": [
+                gnames,
+                gnames2,
+                gsamples,
+                MLE_gsample,
+                grange,
+                gmedian,
+                glow - gmedian,
+                ghigh - gmedian,
+            ],
+            "T-P": [
+                tnames,
+                tnames2,
+                tsamples,
+                MLE_tsample,
+                trange,
+                tmedian,
+                tlow - tmedian,
+                thigh - tmedian,
+            ],
+            "custom": [
+                knames,
+                knames2,
+                ksamples,
+                MLE_ksample,
+                krange,
+                kmedian,
+                klow - kmedian,
+                khigh - kmedian,
+            ],
+        },
+        np.shape(samples)[-1],
+    ]
+
+What extract_spectra returns (into spectrum_dict):
+    
