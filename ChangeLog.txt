@@ -1,4 +1,39 @@
+<<<<<<< Updated upstream
+APOLLO TO-DO LIST
+
+Bugs and Bug Detection:
+2. Check that the metallicity, etc. are being computed correctly when there
+   are fixed parameters.
+4. Give absorption and scattering cross sections separate table sizes.
+
+Pending Updates:
+5. Implement Arthur's Planet_auto_4-models_exponential.cpp.
+6. Implement Arthur's changes to output and plot both median and MLE values.
+7. Implement and example Arthur's addition of cloud parameters and parametric
+   T-P profiles to Plot Apollo.
+8. Implement Arthur's contribution functions (once completed).
+
+Cosmetic:
+9. Reorganize the header file to handle public and private correctly.
+10. Replace all example output files with up to date versions.
+11. Update the inline documentation and README file. (Include any NOTES from
+    the Change Log.)
+12. Revise the code for clarity: less confusing names for some parameters,
+    correct labeling of "cross section" vs. "opacity" and "aerosol" vs. "cloud"
+    or "haze".
+13. Create or modify an example file for Ensemble mode.
+
+Aerosol and T-P Models:
+14. Combine layer-by-layer and (multiple?) parametric T-P profile generation
+    functions into a single pipeline.
+15. Combine the various aerosol models into a single pipeline (with clear names
+    for each model).
+16. Add more cloud models, especially particle size distributions.
+17. Set the cloud priors so that the cloud base cannot be deeper than the
+    maximum pressure in the model.
+=======
 APOLLO TO-DO LIST (SEPARATE FROM THE ISSUE LIST)
+>>>>>>> Stashed changes
 
 Set the cloud priors so that the cloud base cannot be deeper than the
     maximum pressure in the model.

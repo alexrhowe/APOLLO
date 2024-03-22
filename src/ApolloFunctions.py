@@ -233,6 +233,11 @@ def BinModel(flux,binlo,binhi):
     fbinlo = (1.-np.modf(binlo)[0])-0.5
     fbinhi = np.modf(binhi)[0]-0.5
     binw = binhi-binlo
+    #print(f"length of binflux: {len(binflux)}")
+    #print(f"length of binlo: {len(binlo)}")
+    #print(f"length of fbinhi: {len(fbinhi)}")
+    #print(f"minimum of final index: {np.min(np.atleast_1d((np.floor(binhi))))}")
+    #print(f"maximum of final index: {np.max(np.atleast_1d((np.floor(binhi))))}")
 
     for i in range(0,len(binlo)):
         binflux[i] = np.sum(flux[(int)(np.ceil(binlo[i])):(int)(np.ceil(binhi[i]))])
@@ -294,7 +299,7 @@ def GetScaOpac(gases,abunds):
 
 def GetMollist(gases):
     mollist = np.zeros(len(gases))
-    gaslist = ["h2","h2only","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","crh","feh","tio","vo","hcn","n2","ph3"]
+    gaslist = ["h2","h2only","he","h-","h2o","ch4","co","co2","nh3","h2s","Burrows_alk","Lupu_alk","na", "k", "crh","feh","tio","vo","hcn","n2","ph3"]
     for i in range(0,len(gases)):
         if gases[i] in gaslist: mollist[i] = gaslist.index(gases[i])
         else: mollist[i] = 0

@@ -1,0 +1,29 @@
+#!/bin/sh
+
+#“#SBATCH” directives that convey submission options:
+#SBATCH --job-name=2M2236b_HK+G395H_logg-normal
+#SBATCH --mail-user=arthurad@umich.edu
+#SBATCH --mail-type=ALL
+#SBATCH --account=mrmeyer1
+#SBATCH --partition=standard
+#SBATCH --time=13-23:59:59
+#SBATCH --ntasks=42
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=10g
+
+if [ -n "$SLURM_JOB_NODELIST" ]; then echo $SLURM_JOB_NODELIST; fi
+if [ -n "$SLURM_SUBMIT_DIR" ]; then cd $SLURM_SUBMIT_DIR; fi
+
+module load gcc/10.3.0
+module load openmpi/4.1.6
+module load python3.9-anaconda/2021.11
+module load clang/2022.1.2
+source activate apollo3
+
+export PATH="/home/arthurad/.conda/envs/apollo3/bin:$PATH"
+
+echo running $(which python) ...
+echo -n "running "
+grep N_Steps models/inputs/2M2236.Piette.HK+G395H.input.2024-03-14.logg-normal.dat
+
+mpirun -n $SLURM_NTASKS taskset -a -c 0-1023 python Apollo_multi-sampler_logg-normal.py models/inputs/2M2236.Piette.HK+G395H.input.2024-03-14.logg-normal.dat Retrieval > /scratch/mrmeyer_root/mrmeyer/arthurad/2024-03-14_2M2236b_Piette_HK+G395H_logg-normal.log

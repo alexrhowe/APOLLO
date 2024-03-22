@@ -57,6 +57,7 @@ class Planet
   double pmax;
   double tmin;
   double tmax;
+  double deltalogt;
   double lmin;
   double lmax;
   double wmin;

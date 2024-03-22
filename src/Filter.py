@@ -49,7 +49,7 @@ class Filter():
             microns[i] = lines[i].split()[0]
             thruput[i] = lines[i].split()[1]
         
-        f = interpolate.interp1d(microns,thruput,kind='linear')
+        f = interpolate.interp1d(microns,thruput,kind='linear', fill_value='extrapolate')
         xthruput = f(self.calwave)
 
         theta = 10.08  # half-angle of beam to the detector in degrees
@@ -77,7 +77,7 @@ class Filter():
             microns[i] = lines[i].split()[0]
             thruput[i] = lines[i].split()[1]
 
-        f = interpolate.interp1d(microns,thruput,kind='linear')
+        f = interpolate.interp1d(microns,thruput,kind='linear',fill_value='extrapolate')
         xthruput = f(self.calwave)
 
         theta = 10.08       # half-angle of beam to the detector in degrees
